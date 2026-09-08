@@ -21,7 +21,7 @@ const PARTICLE_DENSITIES = ['off', 'low', 'medium', 'high'] as const;
 const LIGHT_INTENSITIES = ['off', 'soft', 'standard', 'bright'] as const;
 const RADIUS_LEVELS = ['compact', 'standard', 'soft'] as const;
 const WIDTH_LEVELS = ['compact', 'standard', 'wide'] as const;
-const PET_STYLES = ['moonfox', 'ghost', 'slime', 'cat', 'photo', 'ruan'] as const;
+const PET_STYLES = ['moonfox'] as const;
 const VOICE_STYLES = ['normal', 'gentle', 'cheerful', 'playful', 'calm', 'robot'] as const;
 const EFFECT_PRESETS = [
   'none',

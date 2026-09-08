@@ -141,7 +141,7 @@
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | true | 显示开关 |
-| `style` | enum | `moonfox` | `moonfox/photo/ruan/ghost/slime/cat`（月灵狐/小程序员/阮启岚/幽灵/史莱姆/小猫） |
+| `style` | enum | `moonfox` | 固定为 `moonfox`（月灵狐）；旧角色值在加载时自动迁移为月灵狐 |
 | `positionX` | number | 89 | 水平锚点，视口百分比 0–100 |
 | `positionY` | number | 82 | 垂直锚点，视口百分比 0–100 |
 | `size` | number | 144 | 角色尺寸 px，64–288 |
@@ -149,7 +149,7 @@
 | `speech` | boolean | true | 悬停/打开菜单时显示气泡台词 |
 
 > 位置通过拖拽实时更新并持久化；`power-saver` 性能档位或系统 `prefers-reduced-motion` 下自动关闭动画。
-> `moonfox` 使用头部/身体/尾巴三层平滑轮廓，随机眨眼、左右观察、警觉抬头、呼吸与摆尾；`photo` 与 `ruan` 是内嵌角色资源。说话、打篮球、铁山靠、挥手和随机动作仅属于 `ruan`，按动作延迟初始化，并会在靠近屏幕边缘时自动回推。`ghost/slime/cat` 为 SVG 绘制、随主题强调色着色。
+> `moonfox` 使用头部/身体/尾巴三层平滑轮廓。头部以颈部为旋转轴，尾巴以尾根为旋转轴；动作角度、时长与间隔随机浮动，尾巴延迟 80–120ms 后启动并带 1–2 次递减回弹，动作间隙持续保留呼吸式微缩放。
 
 ## 版本迁移
 

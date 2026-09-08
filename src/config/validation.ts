@@ -60,7 +60,7 @@ const DENSITIES = ['off', 'low', 'medium', 'high'] as const;
 const LIGHT_INTENSITIES: readonly LightIntensity[] = ['off', 'soft', 'standard', 'bright'];
 const RADIUS_LEVELS: readonly BorderRadiusLevel[] = ['compact', 'standard', 'soft'];
 const WIDTH_LEVELS: readonly ContentWidthLevel[] = ['compact', 'standard', 'wide'];
-const PET_STYLES: readonly PetStyle[] = ['moonfox', 'ghost', 'slime', 'cat', 'photo', 'ruan'];
+const PET_STYLES: readonly PetStyle[] = ['moonfox'];
 const VOICE_STYLES = ['normal', 'gentle', 'cheerful', 'playful', 'calm', 'robot'] as const;
 const EFFECT_PRESETS: readonly EffectPresetId[] = [
   'none',

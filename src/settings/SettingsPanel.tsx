@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent, type DragEvent } from 'react';
-import type { DesktopThemesConfig, SettingsField, CustomThemeConfig, CustomThemeColors, PetStyle, ThemeId, VoiceStyle } from '../config/types.ts';
+import type { DesktopThemesConfig, SettingsField, CustomThemeConfig, CustomThemeColors, ThemeId, VoiceStyle } from '../config/types.ts';
 import { createDefaultConfig, DEFAULT_APPEARANCE, DEFAULT_FONT, DEFAULT_PET, RECOMMENDED_OPACITY } from '../config/defaults.ts';
 import { exportConfigJson, parseImportedConfig } from '../config/transfer.ts';
 import { THEMES, resolvePalette, type DesktopTheme } from '../themes/index.ts';
@@ -88,15 +88,6 @@ const PERFORMANCE_OPTIONS = ['power-saver', 'balanced', 'quality'] as const;
 const PRESET_OPTIONS = ['none', 'tech-data', 'starfield', 'aurora-flow', 'fireflies', 'bubbles', 'sakura', 'gold-dust', 'breathing', 'custom'] as const;
 
 const PRESET_SWATCHES = ['#3D7EFF', '#22D3EE', '#8B5CF6', '#14B8A6', '#FF7A59', '#C9A962', '#F472B6'];
-
-const STYLE_OPTIONS = [
-  { value: 'moonfox', key: 'pet.style.moonfox' },
-  { value: 'photo', key: 'pet.style.photo' },
-  { value: 'ruan', key: 'pet.style.ruan' },
-  { value: 'ghost', key: 'pet.style.ghost' },
-  { value: 'slime', key: 'pet.style.slime' },
-  { value: 'cat', key: 'pet.style.cat' },
-] as const;
 
 function patchTop(config: DesktopThemesConfig, field: SettingsField, value: unknown): DesktopThemesConfig {
   return { ...config, [field]: value };
@@ -446,14 +437,6 @@ function PetSection(props: { config: DesktopThemesConfig; t: Translate; update: 
   return (
     <Section title={props.t('pet.title')}>
       <Toggle id="dth-pet-enabled" label={props.t('pet.enabled')} checked={pet.enabled} onChange={(v) => setPet({ enabled: v })} />
-      <Segmented
-        id="dth-pet-style"
-        label={props.t('pet.style')}
-        value={pet.style}
-        options={STYLE_OPTIONS.map((s) => ({ value: s.value, label: props.t(s.key as I18nKey) }))}
-        onChange={(v) => setPet({ style: v as PetStyle })}
-        disabled={!pet.enabled}
-      />
       <Slider id="dth-pet-size" label={props.t('pet.size')} min={64} max={288} step={4} value={pet.size} onChange={(v) => setPet({ size: v })} format={(v) => `${v}px`} disabled={!pet.enabled} />
       <Toggle id="dth-pet-animations" label={props.t('pet.animations')} checked={pet.animations} onChange={(v) => setPet({ animations: v })} disabled={!pet.enabled} />
       <Toggle id="dth-pet-speech" label={props.t('pet.speech')} checked={pet.speech} onChange={(v) => setPet({ speech: v })} disabled={!pet.enabled} />

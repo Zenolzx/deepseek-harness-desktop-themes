@@ -3,7 +3,7 @@
   "name": "DeepSeek Harness Desktop Themes",
   "id": "dsh-desktop-themes",
   "short_name": "Desktop Themes",
-  "description": "Installable desktop appearance plugin for DeepSeek Harness: six signature themes with curated wallpapers, font presets, lightweight particle/glow effects, glassmorphism, custom color themes, and six draggable desktop pets including Moonfox and Ruan Qilan.",
+  "description": "Installable desktop appearance plugin for DeepSeek Harness: six signature themes with curated wallpapers, font presets, lightweight particle/glow effects, glassmorphism, custom color themes, and a draggable animated Moonfox desktop pet.",
   "version": "1.6.0",
   "author": "dsh-desktop-themes contributors",
   "license": "MIT",

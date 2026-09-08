@@ -3,8 +3,7 @@
  *
  * Registered into the `shell.overlay` slot — a frame-wide floating layer above
  * every column. The pet is:
- *  - character-specific motion: Moonfox has organic idle behavior, Ruan keeps
- *    the frame-based meme actions, and the CSS pets keep their own idle loops;
+ *  - Moonfox-specific organic head, tail, blink, and breathing motion;
  *  - draggable (position persisted as viewport percentages);
  *  - clickable, opening a compact quick menu with theme / font / wallpaper /
  *    effects / pet controls — the same business face the settings panel uses,
@@ -17,22 +16,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
-import type { DesktopThemesConfig, EffectPresetId, PetConfig, PetStyle, VoiceStyle } from '../config/types.ts';
+import type { DesktopThemesConfig, EffectPresetId, PetConfig, VoiceStyle } from '../config/types.ts';
 import { DEFAULT_PET, DEFAULT_PET_SPEECH_LINES } from '../config/defaults.ts';
 import { THEMES, resolvePalette } from '../themes/index.ts';
 import { CODE_FONT_PRESETS, CUSTOM_PRESET_KEY, UI_FONT_PRESETS } from '../fonts/presets.ts';
 import { EFFECT_PRESETS } from '../effects/presets.ts';
-import { mixHex } from '../utils/color.ts';
 import type { Store } from '../utils/store.ts';
 import { detectLang, makeTranslator, type I18nKey } from '../settings/i18n.ts';
 import { SpeechLinesEditor } from '../settings/controls.tsx';
 import type { WallpaperPickResult } from '../settings/SettingsPanel.tsx';
-import { PET_PHOTO_SRC } from './photo.ts';
-import { RUAN_PHOTO_SRC } from './ruan.ts';
-import { loadRuanAnim, RUAN_ANIM, RUAN_ANIM_ACTIONS } from './ruan-anim.ts';
-import type { RuanAnim, RuanAnimAction } from './ruan-anim.ts';
 import { speakLine, VOICE_STYLE_IDS } from './speech.ts';
-import { ruanActionShiftX, ruanActionVisualWidth } from './layout.ts';
 import moonfoxSrc from '../assets/pets/moonfox.jpg';
 import { applyBuiltinThemePreset, isBuiltinThemeId } from '../client/theme-presets.ts';
 
@@ -68,15 +61,6 @@ const TABS: ReadonlyArray<{ id: TabId; key: I18nKey }> = [
   { id: 'pet', key: 'pet.quick.pet' },
 ];
 
-const STYLES: ReadonlyArray<{ id: PetStyle; key: I18nKey }> = [
-  { id: 'moonfox', key: 'pet.style.moonfox' },
-  { id: 'photo', key: 'pet.style.photo' },
-  { id: 'ruan', key: 'pet.style.ruan' },
-  { id: 'ghost', key: 'pet.style.ghost' },
-  { id: 'slime', key: 'pet.style.slime' },
-  { id: 'cat', key: 'pet.style.cat' },
-];
-
 const GLOW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'off', label: 'Off' },
   { value: 'soft', label: 'Soft' },
@@ -84,70 +68,47 @@ const GLOW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'bright', label: 'Bright' },
 ];
 
-/**
- * Frame actions belong exclusively to the '阮启岚' character.
- */
-type PetAction = 'idle' | RuanAnimAction;
+type MoonfoxMotion = 'idle' | 'head-shake' | 'tail-wag';
 
-/** Frame-based actions available for the 'ruan' character. */
-const FRAME_ACTIONS: readonly RuanAnimAction[] = RUAN_ANIM_ACTIONS;
+interface MoonfoxMotionProfile {
+  id: MoonfoxMotion;
+  run: number;
+  headAngle: number;
+  headDuration: number;
+  tailAngle: number;
+  tailDuration: number;
+  tailDelay: number;
+  tailRebounds: 1 | 2;
+}
 
-/** Pool used by double-click: always a real body motion. */
-const ACTIONS: readonly RuanAnimAction[] = [...FRAME_ACTIONS];
-
-const ACTION_LABELS: Record<RuanAnimAction, I18nKey> = {
-  talk: 'pet.action.talk',
-  basketball: 'pet.action.basketball',
-  lean: 'pet.action.lean',
-  wave: 'pet.action.wave',
+const IDLE_MOONFOX_MOTION: MoonfoxMotionProfile = {
+  id: 'idle',
+  run: 0,
+  headAngle: 0,
+  headDuration: 1000,
+  tailAngle: 0,
+  tailDuration: 1000,
+  tailDelay: 100,
+  tailRebounds: 2,
 };
 
-const ACTION_DURATIONS: Record<PetAction, number> = {
-  idle: 0,
-  talk: RUAN_ANIM.talk.durationMs,
-  basketball: RUAN_ANIM.basketball.durationMs,
-  lean: RUAN_ANIM.lean.durationMs,
-  wave: RUAN_ANIM.wave.durationMs,
-};
+const randomBetween = (min: number, max: number): number => min + Math.random() * (max - min);
 
-type MoonfoxMotion = 'idle' | 'look-left' | 'look-right' | 'perk' | 'tail-wag' | 'head-shake';
-
-const MOONFOX_MOTIONS: ReadonlyArray<{ id: Exclude<MoonfoxMotion, 'idle'>; duration: number }> = [
-  // Head shake and tail wag are deliberately weighted twice: these are the
-  // fox's signature cute actions and should occur more often than glances.
-  { id: 'head-shake', duration: 1500 },
-  { id: 'tail-wag', duration: 1700 },
-  { id: 'look-left', duration: 950 },
-  { id: 'look-right', duration: 950 },
-  { id: 'perk', duration: 900 },
-  { id: 'head-shake', duration: 1500 },
-  { id: 'tail-wag', duration: 1700 },
-];
+function createMoonfoxMotion(id: Exclude<MoonfoxMotion, 'idle'>, run: number): MoonfoxMotionProfile {
+  const direction = Math.random() < 0.5 ? -1 : 1;
+  return {
+    id,
+    run,
+    headAngle: direction * randomBetween(8, 13),
+    headDuration: randomBetween(900, 1250),
+    tailAngle: -direction * randomBetween(15, 23),
+    tailDuration: randomBetween(920, 1320),
+    tailDelay: randomBetween(80, 120),
+    tailRebounds: Math.random() < 0.5 ? 1 : 2,
+  };
+}
 
 const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
-
-function decodeFrame(src: string): Promise<void> {
-  if (typeof Image === 'undefined') return Promise.resolve();
-  const image = new Image();
-  image.decoding = 'async';
-  image.src = src;
-  if (typeof image.decode === 'function') return image.decode().catch(() => undefined);
-  return new Promise((resolve) => {
-    image.onload = () => resolve();
-    image.onerror = () => resolve();
-  });
-}
-
-function warmRemainingFrames(anim: RuanAnim): void {
-  const warm = () => {
-    for (const src of anim.frames.slice(1)) void decodeFrame(src);
-  };
-  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-    (window as Window & { requestIdleCallback: (callback: () => void, options?: { timeout: number }) => number }).requestIdleCallback(warm, { timeout: 800 });
-  } else {
-    setTimeout(warm, 0);
-  }
-}
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
@@ -156,126 +117,6 @@ function prefersReducedMotion(): boolean {
   } catch {
     return false;
   }
-}
-
-interface PetColors {
-  body: string;
-  outline: string;
-  ink: string;
-  blush: string;
-  cup: string;
-  cupDark: string;
-  steam: string;
-}
-
-function colorsFor(accent: string): PetColors {
-  return {
-    body: mixHex(accent, '#ffffff', 0.82),
-    outline: mixHex(accent, '#1a1d29', 0.62),
-    ink: '#232733',
-    blush: 'rgba(244, 114, 182, 0.5)',
-    cup: '#b98a5e',
-    cupDark: '#8a6239',
-    steam: 'rgba(255, 255, 255, 0.9)',
-  };
-}
-
-/** Ghost — the default look from the reference artwork. */
-function GhostFigure(props: { c: PetColors }) {
-  const { c } = props;
-  return (
-    <svg viewBox="0 0 100 104" className="dth-pet-figure" aria-hidden="true">
-      <path
-        d="M50 6 C28 6 16 20 16 42 L16 82 Q21 74 26 82 Q31 74 36 82 Q41 74 46 82 Q51 74 56 82 Q61 74 66 82 Q71 74 76 82 Q81 74 86 82 L86 42 C86 20 72 6 50 6 Z"
-        fill={c.body}
-        stroke={c.outline}
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-      <ellipse cx="38" cy="44" rx="5.5" ry="7" fill={c.ink} className="dth-pet-eye" />
-      <ellipse cx="62" cy="44" rx="5.5" ry="7" fill={c.ink} className="dth-pet-eye" />
-      <circle cx="40.5" cy="41" r="1.9" fill="#ffffff" />
-      <circle cx="64.5" cy="41" r="1.9" fill="#ffffff" />
-      <ellipse cx="29" cy="56" rx="5" ry="3.4" fill={c.blush} />
-      <ellipse cx="71" cy="56" rx="5" ry="3.4" fill={c.blush} />
-      <path d="M45 57 Q50 61 55 57" stroke={c.ink} strokeWidth="2" fill="none" strokeLinecap="round" />
-      <path d="M40 62 h20 v16 a4 4 0 0 1 -4 4 h-12 a4 4 0 0 1 -4 -4 Z" fill={c.cup} stroke={c.cupDark} strokeWidth="1.5" />
-      <path d="M60 67 h5 a5 5 0 0 1 0 10 h-5" fill="none" stroke={c.cupDark} strokeWidth="2" />
-      <path className="dth-pet-steam" d="M46 58 q2 -5 0 -9 M54 58 q2 -5 0 -9" stroke={c.steam} strokeWidth="2" fill="none" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Slime — a round blob with a shine and a cup at its side. */
-function SlimeFigure(props: { c: PetColors }) {
-  const { c } = props;
-  return (
-    <svg viewBox="0 0 100 104" className="dth-pet-figure" aria-hidden="true">
-      <path
-        d="M50 10 C 24 10 14 32 14 58 C 14 82 30 96 50 96 C 70 96 86 82 86 58 C 86 32 76 10 50 10 Z"
-        fill={c.body}
-        stroke={c.outline}
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-      <ellipse cx="36" cy="30" rx="10" ry="5" fill="#ffffff" opacity="0.5" transform="rotate(-18 36 30)" />
-      <ellipse cx="40" cy="52" rx="5.5" ry="7" fill={c.ink} className="dth-pet-eye" />
-      <ellipse cx="60" cy="52" rx="5.5" ry="7" fill={c.ink} className="dth-pet-eye" />
-      <circle cx="42.5" cy="49" r="1.9" fill="#ffffff" />
-      <circle cx="62.5" cy="49" r="1.9" fill="#ffffff" />
-      <ellipse cx="30" cy="64" rx="5" ry="3.4" fill={c.blush} />
-      <ellipse cx="70" cy="64" rx="5" ry="3.4" fill={c.blush} />
-      <path d="M46 65 Q50 69 54 65" stroke={c.ink} strokeWidth="2" fill="none" strokeLinecap="round" />
-      <path d="M62 70 h16 v13 a3.5 3.5 0 0 1 -3.5 3.5 h-9 a3.5 3.5 0 0 1 -3.5 -3.5 Z" fill={c.cup} stroke={c.cupDark} strokeWidth="1.5" />
-      <path d="M78 74 h4 a4 4 0 0 1 0 8 h-4" fill="none" stroke={c.cupDark} strokeWidth="2" />
-      <path className="dth-pet-steam" d="M68 66 q2 -5 0 -9 M76 66 q2 -5 0 -9" stroke={c.steam} strokeWidth="2" fill="none" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Cat — a round head with ears, whiskers and a cup. */
-function CatFigure(props: { c: PetColors }) {
-  const { c } = props;
-  return (
-    <svg viewBox="0 0 100 104" className="dth-pet-figure" aria-hidden="true">
-      <path d="M36 24 L29 8 L46 16 Z" fill={c.body} stroke={c.outline} strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M64 24 L71 8 L54 16 Z" fill={c.body} stroke={c.outline} strokeWidth="2.5" strokeLinejoin="round" />
-      <path
-        d="M50 22 C 30 22 18 36 18 54 C 18 76 32 90 50 90 C 68 90 82 76 82 54 C 82 36 70 22 50 22 Z"
-        fill={c.body}
-        stroke={c.outline}
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-      <path d="M22 58 L10 54 M22 63 L10 65" stroke={c.ink} strokeWidth="2" strokeLinecap="round" opacity="0.55" />
-      <path d="M78 58 L90 54 M78 63 L90 65" stroke={c.ink} strokeWidth="2" strokeLinecap="round" opacity="0.55" />
-      <ellipse cx="38" cy="52" rx="5.5" ry="7" fill={c.ink} className="dth-pet-eye" />
-      <ellipse cx="62" cy="52" rx="5.5" ry="7" fill={c.ink} className="dth-pet-eye" />
-      <circle cx="40.5" cy="49" r="1.9" fill="#ffffff" />
-      <circle cx="64.5" cy="49" r="1.9" fill="#ffffff" />
-      <ellipse cx="29" cy="64" rx="5" ry="3.4" fill={c.blush} />
-      <ellipse cx="71" cy="64" rx="5" ry="3.4" fill={c.blush} />
-      <path d="M46 63 L50 66 L54 63" stroke={c.ink} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M40 68 h20 v16 a4 4 0 0 1 -4 4 h-12 a4 4 0 0 1 -4 -4 Z" fill={c.cup} stroke={c.cupDark} strokeWidth="1.5" />
-      <path d="M60 73 h5 a5 5 0 0 1 0 10 h-5" fill="none" stroke={c.cupDark} strokeWidth="2" />
-      <path className="dth-pet-steam" d="M46 64 q2 -5 0 -9 M54 64 q2 -5 0 -9" stroke={c.steam} strokeWidth="2" fill="none" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PetFigure(props: { style: PetStyle; c: PetColors; action: PetAction; frameIndex: number; anim: RuanAnim | null; moonfoxMotion: MoonfoxMotion; moonfoxBlinking: boolean }) {
-  if (props.style === 'moonfox') return <MoonfoxFigure motion={props.moonfoxMotion} blinking={props.moonfoxBlinking} />;
-  if (props.style === 'photo') return <PhotoFigure src={PET_PHOTO_SRC} />;
-  if (props.style === 'ruan') {
-    if (props.action !== 'idle' && props.anim !== null && props.anim.frames.length > 0) {
-      const idx = Math.max(0, Math.min(props.frameIndex, props.anim.frames.length - 1));
-      return <PhotoFigure src={props.anim.frames[idx]} />;
-    }
-    return <PhotoFigure src={RUAN_PHOTO_SRC} />;
-  }
-  if (props.style === 'slime') return <SlimeFigure c={props.c} />;
-  if (props.style === 'cat') return <CatFigure c={props.c} />;
-  return <GhostFigure c={props.c} />;
 }
 
 /** Moonfox — split into silhouette layers so head and tail move independently. */
@@ -301,9 +142,29 @@ function MoonfoxLayer(props: { part: 'body' | 'head' | 'tail' }) {
   );
 }
 
-function MoonfoxFigure(props: { motion: MoonfoxMotion; blinking: boolean }) {
+function MoonfoxFigure(props: { motion: MoonfoxMotionProfile; blinking: boolean }) {
+  const motionStyle: CSSProperties & Record<`--dth-${string}`, string> = {
+    '--dth-head-angle': `${props.motion.headAngle.toFixed(2)}deg`,
+    '--dth-head-reverse': `${(-props.motion.headAngle * 0.78).toFixed(2)}deg`,
+    '--dth-head-rebound': `${(props.motion.headAngle * 0.38).toFixed(2)}deg`,
+    '--dth-head-rebound-c': `${(-props.motion.headAngle * 0.14).toFixed(2)}deg`,
+    '--dth-head-duration': `${props.motion.headDuration.toFixed(0)}ms`,
+    '--dth-tail-angle': `${props.motion.tailAngle.toFixed(2)}deg`,
+    '--dth-tail-rebound-a': `${(-props.motion.tailAngle * 0.52).toFixed(2)}deg`,
+    '--dth-tail-rebound-b': `${(props.motion.tailAngle * 0.28).toFixed(2)}deg`,
+    '--dth-tail-rebound-c': `${(-props.motion.tailAngle * 0.12).toFixed(2)}deg`,
+    '--dth-tail-duration': `${props.motion.tailDuration.toFixed(0)}ms`,
+    '--dth-tail-delay': `${props.motion.tailDelay.toFixed(0)}ms`,
+  };
   return (
-    <span className="dth-pet-figure dth-moonfox-stage" data-motion={props.motion} aria-hidden="true">
+    <span
+      key={props.motion.run}
+      className="dth-pet-figure dth-moonfox-stage"
+      data-motion={props.motion.id}
+      data-tail-rebounds={props.motion.tailRebounds}
+      style={motionStyle}
+      aria-hidden="true"
+    >
       <MoonfoxLayer part="body" />
       <MoonfoxLayer part="head" />
       <MoonfoxLayer part="tail" />
@@ -317,19 +178,6 @@ function MoonfoxFigure(props: { motion: MoonfoxMotion; blinking: boolean }) {
       <span className="dth-moonfox-star dth-moonfox-star-a" />
       <span className="dth-moonfox-star dth-moonfox-star-b" />
     </span>
-  );
-}
-
-/** A transparent-background PNG character, never redrawn. */
-function PhotoFigure(props: { src: string }) {
-  return (
-    <img
-      src={props.src}
-      alt=""
-      className="dth-pet-figure dth-pet-photo"
-      draggable={false}
-      onContextMenu={(event) => event.preventDefault()}
-    />
   );
 }
 
@@ -348,24 +196,19 @@ export function Pet(props: PetFace) {
   const fileRef = useRef<HTMLInputElement>(null);
   const livePosRef = useRef<{ x: number; y: number } | null>(null);
 
-  const [action, setAction] = useState<PetAction>('idle');
-  const [activeAnim, setActiveAnim] = useState<RuanAnim | null>(null);
-  const [actionRun, setActionRun] = useState(0);
-  const [frameIndex, setFrameIndex] = useState(0);
-  const [moonfoxMotion, setMoonfoxMotion] = useState<MoonfoxMotion>('idle');
+  const [moonfoxMotion, setMoonfoxMotion] = useState<MoonfoxMotionProfile>(IDLE_MOONFOX_MOTION);
   const [moonfoxBlinking, setMoonfoxBlinking] = useState(false);
   const [speechText, setSpeechText] = useState<string>(() => {
     const source = pet.speechLines.length > 0 ? pet.speechLines : DEFAULT_PET_SPEECH_LINES;
     return source.length > 0 ? source[Math.floor(Math.random() * source.length)] : '';
   });
   const [speechVisible, setSpeechVisible] = useState(false);
-  const actionRevertRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const actionRequestRef = useRef(0);
+  const motionResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const motionRunRef = useRef(0);
   const speechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastLineRef = useRef<string>('');
   const prevRunningRef = useRef<string>('');
   const lastTapRef = useRef(0);
-  const [viewportWidth, setViewportWidth] = useState(() => (typeof window === 'undefined' ? 1440 : window.innerWidth));
 
   // Global session-list subscription (a running → idle edge means a turn finished).
   const useSessions = props.useSessions ?? FALLBACK_SESSIONS_HOOK;
@@ -380,9 +223,6 @@ export function Pet(props: PetFace) {
   const t = useMemo(() => makeTranslator(detectLang()), []);
   const reduced = useMemo(() => prefersReducedMotion(), []);
   const still = reduced || !pet.animations || config.performance.level === 'power-saver';
-
-  const accent = useMemo(() => resolvePalette(config.theme, config.customThemes)?.accent ?? '#3D7EFF', [config.theme, config.customThemes]);
-  const colors = useMemo(() => colorsFor(accent), [accent]);
 
   const x = pos?.x ?? pet.positionX;
   const y = pos?.y ?? pet.positionY;
@@ -402,51 +242,29 @@ export function Pet(props: PetFace) {
     return next;
   }, [lines]);
 
-  const clearActionRevert = useCallback(() => {
-    if (actionRevertRef.current !== null) {
-      clearTimeout(actionRevertRef.current);
-      actionRevertRef.current = null;
+  const clearMotionReset = useCallback(() => {
+    if (motionResetRef.current !== null) {
+      clearTimeout(motionResetRef.current);
+      motionResetRef.current = null;
     }
   }, []);
 
-  const startAction = useCallback(
-    (next: RuanAnimAction, anim: RuanAnim | null) => {
-      clearActionRevert();
-      setActiveAnim(anim);
-      setFrameIndex(anim?.sequence[0] ?? 0);
-      setAction(next);
-      setActionRun((run) => run + 1);
-      actionRevertRef.current = setTimeout(() => {
-        setAction('idle');
-        setActiveAnim(null);
-        setFrameIndex(0);
-      }, ACTION_DURATIONS[next]);
-    },
-    [clearActionRevert],
-  );
-
-  const playAction = useCallback(
-    (next: PetAction) => {
-      if (next === 'idle' || still || pet.style !== 'ruan') return;
-      const request = actionRequestRef.current + 1;
-      actionRequestRef.current = request;
-      void loadRuanAnim(next).then((anim) => {
-        if (actionRequestRef.current !== request) return;
-        void decodeFrame(anim.frames[0] ?? '').then(() => {
-          if (actionRequestRef.current !== request) return;
-          startAction(next, anim);
-          warmRemainingFrames(anim);
-        });
-      });
-    },
-    [pet.style, startAction, still],
-  );
-
-  const playRandomAction = useCallback(() => {
-    if (pet.style !== 'ruan') return;
-    const next = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
-    playAction(next);
-  }, [pet.style, playAction]);
+  const playMoonfoxMotion = useCallback((id: Exclude<MoonfoxMotion, 'idle'>) => {
+    if (still) return;
+    clearMotionReset();
+    motionRunRef.current += 1;
+    const run = motionRunRef.current;
+    const profile = createMoonfoxMotion(id, run);
+    setMoonfoxMotion(profile);
+    const headEnd = id === 'head-shake' ? profile.headDuration : 0;
+    const tailEnd = profile.tailDelay + profile.tailDuration;
+    motionResetRef.current = setTimeout(
+      () => {
+        if (motionRunRef.current === run) setMoonfoxMotion({ ...IDLE_MOONFOX_MOTION, run });
+      },
+      Math.max(headEnd, tailEnd) + 60,
+    );
+  }, [clearMotionReset, still]);
 
   const showSpeech = useCallback((text: string, holdMs: number) => {
     setSpeechText(text);
@@ -464,25 +282,23 @@ export function Pet(props: PetFace) {
       showSpeech(line, 3600);
       if (pet.voiceEnabled) speakLine(line, pet.voiceStyle, pet.style);
     }
-    if (!still && pet.style === 'ruan') playAction('talk');
-    if (!still && pet.style === 'moonfox') setMoonfoxMotion('perk');
+    playMoonfoxMotion('head-shake');
     setOpen(true);
-  }, [pickLine, showSpeech, playAction, still, pet.style, pet.voiceEnabled, pet.voiceStyle]);
+  }, [pickLine, showSpeech, playMoonfoxMotion, pet.style, pet.voiceEnabled, pet.voiceStyle]);
 
   const onTurnComplete = useCallback(() => {
     const line = pickLine();
     if (line.length === 0) return;
     showSpeech(line, 4200);
-    if (!still && pet.style === 'ruan') playAction('talk');
-    if (!still && pet.style === 'moonfox') setMoonfoxMotion('head-shake');
+    playMoonfoxMotion('head-shake');
     if (pet.voiceEnabled) speakLine(line, pet.voiceStyle, pet.style);
-  }, [pickLine, showSpeech, playAction, still, pet.style, pet.voiceEnabled, pet.voiceStyle]);
+  }, [pickLine, showSpeech, playMoonfoxMotion, pet.style, pet.voiceEnabled, pet.voiceStyle]);
 
-  // Moonfox uses irregular independent blink/body/tail beats instead of the
-  // Ruan action catalogue, so it feels alive without becoming repetitive.
+  // Independent irregular timers avoid a visibly repeating idle cycle.
   useEffect(() => {
-    if (pet.style !== 'moonfox' || still || open) {
-      setMoonfoxMotion('idle');
+    if (still) {
+      clearMotionReset();
+      setMoonfoxMotion(IDLE_MOONFOX_MOTION);
       setMoonfoxBlinking(false);
       return;
     }
@@ -495,14 +311,18 @@ export function Pet(props: PetFace) {
     const scheduleMotion = () => {
       motionTimer = setTimeout(() => {
         if (!alive) return;
-        const chosen = MOONFOX_MOTIONS[Math.floor(Math.random() * MOONFOX_MOTIONS.length)];
-        setMoonfoxMotion(chosen.id);
+        motionRunRef.current += 1;
+        const chosen = createMoonfoxMotion(Math.random() < 0.55 ? 'tail-wag' : 'head-shake', motionRunRef.current);
+        setMoonfoxMotion(chosen);
+        const headEnd = chosen.id === 'head-shake' ? chosen.headDuration : 0;
         motionReset = setTimeout(() => {
           if (!alive) return;
-          setMoonfoxMotion('idle');
+          if (motionRunRef.current === chosen.run) {
+            setMoonfoxMotion({ ...IDLE_MOONFOX_MOTION, run: chosen.run });
+          }
           scheduleMotion();
-        }, chosen.duration);
-      }, 800 + Math.random() * 2000);
+        }, Math.max(headEnd, chosen.tailDelay + chosen.tailDuration) + 60);
+      }, randomBetween(1400, 4000));
     };
     const scheduleBlink = () => {
       blinkTimer = setTimeout(() => {
@@ -524,57 +344,16 @@ export function Pet(props: PetFace) {
       if (blinkTimer !== null) clearTimeout(blinkTimer);
       if (blinkReset !== null) clearTimeout(blinkReset);
     };
-  }, [pet.style, still, open]);
-
-  useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  // Cancel an action that belongs to another character or a newly enabled
-  // reduced-motion state.
-  useEffect(() => {
-    actionRequestRef.current += 1;
-    clearActionRevert();
-    setAction('idle');
-    setActiveAnim(null);
-    setFrameIndex(0);
-  }, [pet.style, still, clearActionRevert]);
+  }, [still, clearMotionReset]);
 
   // Clear any pending timers when the pet unmounts.
   useEffect(
     () => () => {
-      actionRequestRef.current += 1;
-      clearActionRevert();
+      clearMotionReset();
       if (speechTimerRef.current !== null) clearTimeout(speechTimerRef.current);
     },
-    [clearActionRevert],
+    [clearMotionReset],
   );
-
-  // Cycle the 'ruan' character's animation frames while a frame action plays.
-  useEffect(() => {
-    if (pet.style !== 'ruan' || still) {
-      setFrameIndex(0);
-      return;
-    }
-    if (action === 'idle' || activeAnim === null || activeAnim.frames.length <= 1) {
-      setFrameIndex(0);
-      return;
-    }
-    const sequence = activeAnim.sequence.length > 0 ? activeAnim.sequence : activeAnim.frames.map((_, index) => index);
-    let step = 0;
-    setFrameIndex(sequence[0] ?? 0);
-    const timer = setInterval(() => {
-      step += 1;
-      if (step >= sequence.length) {
-        clearInterval(timer);
-        return;
-      }
-      setFrameIndex(sequence[step] ?? 0);
-    }, activeAnim.frameMs);
-    return () => clearInterval(timer);
-  }, [action, actionRun, activeAnim, pet.style, still]);
 
   // Celebrate + read a line when a conversation finishes (running → idle edge).
   useEffect(() => {
@@ -667,8 +446,7 @@ export function Pet(props: PetFace) {
       const now = Date.now();
       if (now - lastTapRef.current <= 300) {
         lastTapRef.current = 0;
-        if (!still && pet.style === 'ruan') playRandomAction();
-        else if (!still && pet.style === 'moonfox') setMoonfoxMotion('head-shake');
+        playMoonfoxMotion('tail-wag');
       } else {
         lastTapRef.current = now;
         singleClick();
@@ -701,23 +479,18 @@ export function Pet(props: PetFace) {
 
   if (!pet.enabled) return null;
 
-  const actionMeta = action === 'idle' ? null : activeAnim ?? RUAN_ANIM[action];
-  const actionWidth = pet.style === 'ruan' && actionMeta !== null
-    ? ruanActionVisualWidth(pet.size, actionMeta.width, actionMeta.height)
-    : pet.size;
-  const actionShiftX = ruanActionShiftX(viewportWidth, x, actionWidth * 1.04);
   const rootStyle: CSSProperties & { '--dth-pet-shift-x': string } = {
     left: `${x}%`,
     top: `${y}%`,
     width: `${pet.size}px`,
-    '--dth-pet-shift-x': `${actionShiftX}px`,
+    '--dth-pet-shift-x': '0px',
   };
 
   const menuUp = y > 55;
   const menuLeft = x > 55;
 
   return (
-    <div ref={rootRef} className="dth-pet" style={rootStyle} data-still={still ? 'true' : 'false'} data-dragging={drag !== null ? 'true' : 'false'} data-open={open ? 'true' : 'false'} data-action={action} data-action-run={actionRun} data-style={pet.style}>
+    <div ref={rootRef} className="dth-pet" style={rootStyle} data-still={still ? 'true' : 'false'} data-dragging={drag !== null ? 'true' : 'false'} data-open={open ? 'true' : 'false'} data-style="moonfox">
       <div className="dth-pet-anchor">
         <button
           type="button"
@@ -732,13 +505,12 @@ export function Pet(props: PetFace) {
           onMouseEnter={() => {
             setHover(true);
             setSpeechText(pickLine());
-            if (!still && pet.style === 'ruan') playAction('wave');
-            if (!still && pet.style === 'moonfox') setMoonfoxMotion('perk');
+            playMoonfoxMotion('tail-wag');
           }}
           onMouseLeave={() => setHover(false)}
           onContextMenu={(event) => event.preventDefault()}
         >
-          <PetFigure style={pet.style} c={colors} action={action} frameIndex={frameIndex} anim={activeAnim} moonfoxMotion={moonfoxMotion} moonfoxBlinking={moonfoxBlinking} />
+          <MoonfoxFigure motion={moonfoxMotion} blinking={moonfoxBlinking} />
         </button>
         {pet.speech && (hover || open || speechVisible) ? (
           <span className="dth-pet-bubble" role="status">
@@ -917,41 +689,6 @@ export function Pet(props: PetFace) {
               ) : null}
               {tab === 'pet' ? (
                 <div className="dth-pet-stack">
-                  <span className="dth-pet-label">{t('pet.style')}</span>
-                  <div className="dth-pet-styles">
-                    {STYLES.map((style) => (
-                      <button
-                        key={style.id}
-                        type="button"
-                        className={`dth-pet-style${pet.style === style.id ? ' is-active' : ''}`}
-                        onClick={() => commitPet({ style: style.id })}
-                      >
-                        {t(style.key)}
-                      </button>
-                    ))}
-                  </div>
-                  {pet.style === 'ruan' ? (
-                    <>
-                      <span className="dth-pet-label">{t('pet.action.title')}</span>
-                      <div className="dth-pet-actions" role="group" aria-label={t('pet.action.title')}>
-                        {FRAME_ACTIONS.map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className={`dth-pet-action${action === item ? ' is-active' : ''}`}
-                            aria-pressed={action === item}
-                            disabled={still}
-                            onClick={() => playAction(item)}
-                          >
-                            {t(ACTION_LABELS[item])}
-                          </button>
-                        ))}
-                        <button type="button" className="dth-pet-action" disabled={still} onClick={playRandomAction}>
-                          {t('pet.action.random')}
-                        </button>
-                      </div>
-                    </>
-                  ) : null}
                   <label className="dth-pet-label" htmlFor="dth-pet-size">
                     {t('pet.size')} · {pet.size}px
                   </label>

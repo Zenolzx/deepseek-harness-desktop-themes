@@ -95,7 +95,7 @@ export const DEFAULT_GLASS: GlassConfig = {
 export const DEFAULT_PET_SPEECH_LINES: string[] = [
   'debug + coffee = life',
   '404: 休息时间未找到',
-  '我是一只有 bug 的小幽灵',
+  '月光巡逻中，一切正常',
   '再写一行就下班',
   '咖啡因已注入，冲刺中！',
   '别慌，先喝口咖啡',

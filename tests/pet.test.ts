@@ -4,8 +4,6 @@ import assert from 'node:assert/strict';
 import { DEFAULT_CONFIG, DEFAULT_PET, createDefaultConfig } from '../src/config/defaults.ts';
 import { coerceConfig, mergeConfig } from '../src/config/validation.ts';
 import { DesktopThemesSchema } from '../src/config/schema.ts';
-import { loadRuanAnim, RUAN_ANIM, RUAN_ANIM_ACTIONS } from '../src/pet/ruan-anim.ts';
-import { ruanActionShiftX, ruanActionVisualWidth } from '../src/pet/layout.ts';
 import { resolveVoiceProfile, VOICE_STYLE_IDS } from '../src/pet/speech.ts';
 import { readFileSync } from 'node:fs';
 
@@ -42,7 +40,7 @@ test('coerceConfig accepts a valid pet section', () => {
   const config = coerceConfig({
     pet: {
       enabled: false,
-      style: 'cat',
+      style: 'moonfox',
       positionX: 20,
       positionY: 30,
       size: 160,
@@ -54,7 +52,7 @@ test('coerceConfig accepts a valid pet section', () => {
     },
   });
   assert.equal(config.pet.enabled, false);
-  assert.equal(config.pet.style, 'cat');
+  assert.equal(config.pet.style, 'moonfox');
   assert.equal(config.pet.positionX, 20);
   assert.equal(config.pet.positionY, 30);
   assert.equal(config.pet.size, 160);
@@ -65,19 +63,15 @@ test('coerceConfig accepts a valid pet section', () => {
   assert.equal(config.pet.voiceStyle, 'cheerful');
 });
 
-test('coerceConfig accepts the photo pet style', () => {
-  const config = coerceConfig({ pet: { style: 'photo' } });
-  assert.equal(config.pet.style, 'photo');
-});
-
 test('coerceConfig accepts the moonfox pet style', () => {
   const config = coerceConfig({ pet: { style: 'moonfox' } });
   assert.equal(config.pet.style, 'moonfox');
 });
 
-test('coerceConfig accepts the ruan pet style', () => {
-  const config = coerceConfig({ pet: { style: 'ruan' } });
-  assert.equal(config.pet.style, 'ruan');
+test('coerceConfig migrates every removed pet style to moonfox', () => {
+  for (const style of ['photo', 'ruan', 'ghost', 'slime', 'cat']) {
+    assert.equal(coerceConfig({ pet: { style } }).pet.style, 'moonfox');
+  }
 });
 
 test('coerceConfig clamps out-of-range pet values and rejects unknown styles', () => {
@@ -119,9 +113,9 @@ test('schema resolves the pet section to defaults for an empty input', () => {
 
 test('schema accepts a valid pet override', () => {
   const resolved = DesktopThemesSchema({
-    pet: { style: 'slime', size: 144, enabled: false, voiceEnabled: true, voiceStyle: 'robot', speechLines: ['hi'] },
+    pet: { style: 'moonfox', size: 144, enabled: false, voiceEnabled: true, voiceStyle: 'robot', speechLines: ['hi'] },
   });
-  assert.equal(resolved.pet.style, 'slime');
+  assert.equal(resolved.pet.style, 'moonfox');
   assert.equal(resolved.pet.size, 144);
   assert.equal(resolved.pet.enabled, false);
   assert.equal(resolved.pet.voiceEnabled, true);
@@ -134,62 +128,32 @@ test('schema rejects an out-of-range pet size', () => {
   assert.throws(() => DesktopThemesSchema({ pet: { size: 9999 } } as any));
 });
 
-test('Ruan lazily loads compact current-character frames for every non-idle action', async () => {
-  assert.deepEqual(RUAN_ANIM_ACTIONS, ['talk', 'basketball', 'lean', 'wave']);
-  let decodedBytes = 0;
-  for (const action of RUAN_ANIM_ACTIONS) {
-    const meta = RUAN_ANIM[action];
-    const anim = await loadRuanAnim(action);
-    assert.equal(anim.frames.length, 8);
-    assert.equal(anim.frameCount, 8);
-    assert.equal(anim.height, 640);
-    assert.ok(anim.width >= 240);
-    assert.ok(anim.frameMs >= 80 && anim.frameMs <= 100);
-    assert.equal(anim.durationMs, anim.frameMs * anim.sequence.length);
-    assert.ok(anim.sequence.length >= 14);
-    assert.ok(anim.sequence.every((index) => index >= 0 && index < anim.frames.length));
-    assert.ok(anim.frames.every((frame) => frame.startsWith('data:image/webp;base64,')));
-    assert.deepEqual({ ...anim, frames: undefined }, { ...meta, frames: undefined });
-    decodedBytes += anim.width * anim.height * 4 * anim.frameCount;
-  }
-  assert.ok(decodedBytes < 32 * 1024 * 1024, `decoded frame budget was ${(decodedBytes / 1024 / 1024).toFixed(1)} MiB`);
-});
-
-test('wide Ruan actions shift back inside the viewport at either edge', () => {
-  const viewport = 800;
-  const visualWidth = ruanActionVisualWidth(288, RUAN_ANIM.lean.width, RUAN_ANIM.lean.height) * 1.04;
-  for (const anchor of [0, 5, 50, 95, 100]) {
-    const center = (viewport * anchor) / 100 + ruanActionShiftX(viewport, anchor, visualWidth);
-    assert.ok(center - visualWidth / 2 >= 7.99);
-    assert.ok(center + visualWidth / 2 <= viewport - 7.99);
-  }
-});
-
-test('Moonfox owns organic motion while Ruan exclusively owns meme actions', () => {
+test('Moonfox motion uses joint anchors, random timing, lag and elastic rebounds', () => {
   const component = readFileSync(new URL('../src/pet/Pet.tsx', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../src/pet/pet.css', import.meta.url), 'utf8');
-  assert.match(component, /pet\.style !== 'ruan'\) return/);
-  assert.match(component, /MOONFOX_MOTIONS/);
+  assert.doesNotMatch(component, /style === '(ruan|ghost|slime|cat|photo)'|PET_PHOTO_SRC|RUAN_PHOTO_SRC/);
+  assert.match(component, /randomBetween\(80, 120\)/);
+  assert.match(component, /randomBetween\(8, 13\)/);
+  assert.match(component, /randomBetween\(920, 1320\)/);
+  assert.match(component, /tailRebounds: Math\.random\(\) < 0\.5 \? 1 : 2/);
   assert.match(component, /setMoonfoxBlinking\(true\)/);
-  assert.doesNotMatch(css, /not\(\[data-style='ruan'\]\)\[data-action/);
-  assert.match(css, /dth-moonfox-head/);
-  assert.match(css, /dth-moonfox-tail-wag/);
+  assert.match(css, /transform-origin: 49% 58%/);
+  assert.match(css, /transform-origin: 64\.5% 50%/);
+  assert.match(css, /cubic-bezier\(0\.34, 1\.56, 0\.64, 1\)/);
+  assert.match(css, /dth-moonfox-tail-wag-two/);
   assert.match(css, /dth-moonfox-head-shake/);
-  assert.doesNotMatch(css, /dth-moonfox-playful/);
+  assert.match(css, /dth-moonfox-breathe/);
 });
 
 test('voice styles expose six clearly separated intonation presets', () => {
   assert.deepEqual(VOICE_STYLE_IDS, ['normal', 'gentle', 'cheerful', 'playful', 'calm', 'robot']);
-  const gentle = resolveVoiceProfile('gentle', 'photo');
-  const playful = resolveVoiceProfile('playful', 'photo');
-  const calm = resolveVoiceProfile('calm', 'photo');
+  const gentle = resolveVoiceProfile('gentle', 'moonfox');
+  const playful = resolveVoiceProfile('playful', 'moonfox');
+  const calm = resolveVoiceProfile('calm', 'moonfox');
   assert.ok(playful.pitch - calm.pitch > 0.7);
   assert.ok(playful.rate - gentle.rate > 0.25);
 });
 
-test('each pet keeps a distinct voice colour within the same intonation', () => {
-  const profiles = ['moonfox', 'ghost', 'slime', 'cat', 'photo', 'ruan']
-    .map((style) => resolveVoiceProfile('normal', style as import('../src/config/types.ts').PetStyle))
-    .map((profile) => `${profile.pitch}:${profile.rate}`);
-  assert.equal(new Set(profiles).size, 6);
+test('Moonfox voice offset composes with an intonation preset', () => {
+  assert.deepEqual(resolveVoiceProfile('normal', 'moonfox'), { pitch: 1.1, rate: 1.02 });
 });

@@ -64,13 +64,6 @@
   transform: scale(1.06);
 }
 
-/* The photo pet is a transparent-background PNG; a rectangle drop-shadow would
- * trace its box, so give it a soft ground shadow instead of an outline. */
-.dth-pet-figure.dth-pet-photo {
-  filter: none;
-  image-rendering: auto;
-}
-
 /* Moonfox is split into tightly clipped subject layers. This removes the pale
  * rectangular/oval matte and lets the head and illustrated tail move
  * independently without decoding multiple assets. */
@@ -111,12 +104,14 @@
 
 .dth-moonfox-head {
   z-index: 4;
-  transform-origin: 48% 54%;
+  /* Neck joint, not the image centre: rotation follows a short natural arc. */
+  transform-origin: 49% 58%;
 }
 
 .dth-moonfox-tail {
   z-index: 3;
-  transform-origin: 64% 72%;
+  /* The tail silhouette begins around (258, 248) in the 400×500 viewBox. */
+  transform-origin: 64.5% 50%;
   animation: dth-moonfox-tail-idle 4.2s ease-in-out infinite;
 }
 
@@ -132,7 +127,7 @@
   border-bottom-color: rgba(153, 129, 255, 0.32);
   border-radius: 50%;
   filter: drop-shadow(0 0 7px rgba(105, 165, 255, 0.75));
-  transform-origin: 35% 76%;
+  transform-origin: 35% 58%;
   pointer-events: none;
   opacity: 0.48;
 }
@@ -176,14 +171,21 @@
   animation: dth-moonfox-twinkle 3.4s ease-in-out infinite;
 }
 
-.dth-moonfox-stage[data-motion='look-left'] .dth-moonfox-head { animation: dth-moonfox-look-left 0.95s ease-in-out both; }
-.dth-moonfox-stage[data-motion='look-right'] .dth-moonfox-head { animation: dth-moonfox-look-right 0.95s ease-in-out both; }
-.dth-moonfox-stage[data-motion='perk'] .dth-moonfox-head { animation: dth-moonfox-perk 0.9s cubic-bezier(.22,.9,.3,1) both; }
 .dth-moonfox-stage[data-motion='tail-wag'] .dth-moonfox-tail,
-.dth-moonfox-stage[data-motion='head-shake'] .dth-moonfox-tail { animation: dth-moonfox-tail-wag 0.42s ease-in-out 4; }
+.dth-moonfox-stage[data-motion='head-shake'] .dth-moonfox-tail {
+  animation: dth-moonfox-tail-wag-two var(--dth-tail-duration) cubic-bezier(0.34, 1.56, 0.64, 1) var(--dth-tail-delay) both;
+}
+.dth-moonfox-stage[data-tail-rebounds='1'][data-motion='tail-wag'] .dth-moonfox-tail,
+.dth-moonfox-stage[data-tail-rebounds='1'][data-motion='head-shake'] .dth-moonfox-tail {
+  animation-name: dth-moonfox-tail-wag-one;
+}
 .dth-moonfox-stage[data-motion='tail-wag'] .dth-moonfox-tail-trail,
-.dth-moonfox-stage[data-motion='head-shake'] .dth-moonfox-tail-trail { animation: dth-moonfox-tail-trail 0.42s ease-in-out 4; }
-.dth-moonfox-stage[data-motion='head-shake'] .dth-moonfox-head { animation: dth-moonfox-head-shake 1.5s cubic-bezier(.45,.05,.35,1) both; }
+.dth-moonfox-stage[data-motion='head-shake'] .dth-moonfox-tail-trail {
+  animation: dth-moonfox-tail-trail var(--dth-tail-duration) cubic-bezier(0.34, 1.56, 0.64, 1) var(--dth-tail-delay) both;
+}
+.dth-moonfox-stage[data-motion='head-shake'] .dth-moonfox-head {
+  animation: dth-moonfox-head-shake var(--dth-head-duration) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
 
 @keyframes dth-moonfox-breathe {
   0%, 100% { transform: translateY(0) scale(1); }
@@ -195,43 +197,33 @@
   50% { transform: rotate(2deg) translateY(-0.5%); }
 }
 
-@keyframes dth-moonfox-look-left {
-  0%, 100% { transform: rotate(0deg) translateX(0); }
-  38%, 68% { transform: rotate(-5deg) translateX(-1.5%); }
-}
-
-@keyframes dth-moonfox-look-right {
-  0%, 100% { transform: rotate(0deg) translateX(0); }
-  38%, 68% { transform: rotate(5deg) translateX(1.5%); }
-}
-
-@keyframes dth-moonfox-perk {
-  0%, 100% { transform: translateY(0) scale(1); }
-  34% { transform: translateY(-3%) scale(1.025, 0.985); }
-  62% { transform: translateY(-1%) rotate(-2deg); }
-}
-
 @keyframes dth-moonfox-head-shake {
-  0%, 100% { transform: perspective(240px) translateX(0) rotateY(0deg) rotate(0deg); }
-  14% { transform: perspective(240px) translateX(-2.2%) rotateY(17deg) rotate(-1deg); }
-  30% { transform: perspective(240px) translateX(2.6%) rotateY(-20deg) rotate(1.2deg); }
-  47% { transform: perspective(240px) translateX(-2%) rotateY(16deg) rotate(-0.8deg); }
-  64% { transform: perspective(240px) translateX(1.5%) rotateY(-12deg) rotate(0.6deg); }
-  80% { transform: perspective(240px) translateX(-0.7%) rotateY(6deg) rotate(-0.3deg); }
+  0%, 100% { transform: rotate(0deg); }
+  22% { transform: rotate(var(--dth-head-angle)); }
+  48% { transform: rotate(var(--dth-head-reverse)); }
+  69% { transform: rotate(var(--dth-head-rebound)); }
+  84% { transform: rotate(var(--dth-head-rebound-c, -1deg)); }
 }
 
-@keyframes dth-moonfox-tail-wag {
-  0%, 100% { transform: rotate(-12deg) translateX(-0.5%); }
-  25% { transform: rotate(17deg) translateX(1.8%) translateY(-0.8%); }
-  50% { transform: rotate(-10deg) translateX(-0.8%); }
-  75% { transform: rotate(14deg) translateX(1.2%) translateY(-0.5%); }
+@keyframes dth-moonfox-tail-wag-one {
+  0%, 100% { transform: rotate(0deg); }
+  38% { transform: rotate(var(--dth-tail-angle)); }
+  72% { transform: rotate(var(--dth-tail-rebound-a)); }
+}
+
+@keyframes dth-moonfox-tail-wag-two {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(var(--dth-tail-angle)); }
+  56% { transform: rotate(var(--dth-tail-rebound-a)); }
+  76% { transform: rotate(var(--dth-tail-rebound-b)); }
+  90% { transform: rotate(var(--dth-tail-rebound-c)); }
 }
 
 @keyframes dth-moonfox-tail-trail {
-  0%, 100% { transform: rotate(-15deg) scaleX(0.86); opacity: 0.2; }
-  25% { transform: rotate(20deg) scaleX(1.16); opacity: 0.88; }
-  50% { transform: rotate(-12deg) scaleX(0.9); opacity: 0.32; }
-  75% { transform: rotate(17deg) scaleX(1.12); opacity: 0.78; }
+  0%, 100% { transform: rotate(0deg) scaleX(0.86); opacity: 0.12; }
+  30% { transform: rotate(var(--dth-tail-angle)) scaleX(1.16); opacity: 0.82; }
+  56% { transform: rotate(var(--dth-tail-rebound-a)) scaleX(0.92); opacity: 0.38; }
+  76% { transform: rotate(var(--dth-tail-rebound-b)) scaleX(1.04); opacity: 0.25; }
 }
 
 @keyframes dth-moonfox-blink {
@@ -251,34 +243,6 @@
   animation: none !important;
 }
 
-/* Keep every Ruan frame at the idle character's visual height. Wide action
- * canvases (basketball / shoulder check) expand around the center instead of
- * shrinking the person or changing the button's layout size. */
-.dth-pet[data-style='ruan'] .dth-pet-anchor {
-  width: 100%;
-}
-
-.dth-pet[data-style='ruan'] .dth-pet-figure-btn {
-  width: 100%;
-  aspect-ratio: 320 / 939;
-  overflow: visible;
-}
-
-.dth-pet[data-style='ruan'] .dth-pet-photo {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: auto;
-  max-width: none;
-  height: 100%;
-  transform: translateX(-50%);
-  transform-origin: center bottom;
-}
-
-.dth-pet[data-style='ruan'] .dth-pet-figure-btn:hover .dth-pet-photo {
-  transform: translateX(-50%) scale(1.04);
-}
-
 /* Idle float (only when animations are enabled). The pet pauses while its
  * quick menu is open so the dialog does not bob around. */
 .dth-pet[data-still='false'][data-open='false'] .dth-pet-anchor {
@@ -288,38 +252,6 @@
 @keyframes dth-pet-float {
   0%, 100% { transform: translate(calc(-50% + var(--dth-pet-shift-x, 0px)), -50%) translateY(0); }
   50% { transform: translate(calc(-50% + var(--dth-pet-shift-x, 0px)), -50%) translateY(-7px); }
-}
-
-/* Eye blink. */
-.dth-pet-eye {
-  transform-origin: center;
-  animation: dth-pet-blink 4.6s ease-in-out infinite;
-}
-
-.dth-pet[data-still='true'] .dth-pet-eye {
-  animation: none;
-}
-
-@keyframes dth-pet-blink {
-  0%, 44%, 48%, 100% { transform: scaleY(1); }
-  46% { transform: scaleY(0.08); }
-}
-
-/* Coffee steam. */
-.dth-pet-steam {
-  animation: dth-pet-steam 2.2s ease-in-out infinite;
-  opacity: 0;
-}
-
-.dth-pet[data-still='true'] .dth-pet-steam {
-  animation: none;
-  opacity: 0.7;
-}
-
-@keyframes dth-pet-steam {
-  0% { opacity: 0; transform: translateY(2px); }
-  40% { opacity: 0.9; }
-  100% { opacity: 0; transform: translateY(-7px); }
 }
 
 .dth-pet[data-still='true'] .dth-pet-figure-btn {
@@ -511,68 +443,6 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* Character style picker. */
-.dth-pet-styles {
-  display: flex;
-  gap: 6px;
-}
-
-.dth-pet-style {
-  flex: 1;
-  padding: 6px 8px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
-  background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.dth-pet-style:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.dth-pet-style.is-active {
-  background: var(--dsw-alias-button-primary-fill);
-  color: var(--dsw-alias-label-primary-foreground);
-  border-color: transparent;
-}
-
-.dth-pet-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.dth-pet-action {
-  min-width: 0;
-  padding: 6px 8px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
-  background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.dth-pet-action:hover:not(:disabled) {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.dth-pet-action.is-active {
-  color: var(--dsw-alias-label-primary-foreground);
-  background: var(--dsw-alias-button-primary-fill);
-  border-color: transparent;
-}
-
-.dth-pet-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-
 .dth-pet-stack input[type='range'] {
   width: 100%;
   accent-color: var(--dsw-alias-brand-primary);
@@ -599,8 +469,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dth-pet-anchor,
-  .dth-pet-eye,
-  .dth-pet-steam,
   .dth-pet-figure,
   .dth-pet-figure-btn {
     animation: none !important;

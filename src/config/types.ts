@@ -37,7 +37,7 @@ export type LightIntensity = 'off' | 'soft' | 'standard' | 'bright';
 export type BorderRadiusLevel = 'compact' | 'standard' | 'soft';
 
 /** Desktop pet character style. */
-export type PetStyle = 'moonfox' | 'ghost' | 'slime' | 'cat' | 'photo' | 'ruan';
+export type PetStyle = 'moonfox';
 
 /** Desktop pet voice (text-to-speech) emotion presets. */
 export type VoiceStyle = 'normal' | 'gentle' | 'cheerful' | 'playful' | 'calm' | 'robot';

@@ -26,25 +26,15 @@ export const VOICE_STYLE_PRESETS: Readonly<Record<VoiceStyle, VoiceProfile>> = {
 
 export const VOICE_STYLE_IDS: readonly VoiceStyle[] = ['normal', 'gentle', 'cheerful', 'playful', 'calm', 'robot'];
 
-/**
- * Small character offsets keep pets recognisable even when they share the
- * same selected intonation. Values are intentionally subtle enough to compose
- * with the much stronger style preset above.
- */
 const PET_VOICE_OFFSETS: Readonly<Record<PetStyle, VoiceProfile>> = {
   moonfox: { pitch: 0.1, rate: 0.02 },
-  photo: { pitch: 0, rate: 0 },
-  ruan: { pitch: -0.08, rate: -0.04 },
-  ghost: { pitch: 0.16, rate: -0.06 },
-  slime: { pitch: 0.28, rate: 0.05 },
-  cat: { pitch: 0.2, rate: 0.08 },
 };
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 export function resolveVoiceProfile(style: VoiceStyle, petStyle: PetStyle): VoiceProfile {
   const preset = VOICE_STYLE_PRESETS[style] ?? VOICE_STYLE_PRESETS.normal;
-  const offset = PET_VOICE_OFFSETS[petStyle] ?? PET_VOICE_OFFSETS.photo;
+  const offset = PET_VOICE_OFFSETS[petStyle];
   return {
     pitch: clamp(preset.pitch + offset.pitch, 0.1, 2),
     rate: clamp(preset.rate + offset.rate, 0.5, 2),
