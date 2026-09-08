@@ -58,6 +58,13 @@ if (typeof document !== 'undefined') {
 }
 
 interface ThemeRuntimeLike {
+  /** Current theme snapshot (mirrors `ThemeRuntime#getTheme`). */
+  getTheme?(): {
+    active?: { id?: string; colorScheme?: string };
+    themes?: Array<{ id: string }>;
+    preference?: string;
+    revision?: number;
+  };
   register(definition: { id: string; colorScheme: string; tokens: Record<string, string> }): () => void;
   setTheme(id: string): void;
   overrideTokens(source: string, tokens: Record<string, { light: string; dark: string }>): () => void;
@@ -161,6 +168,45 @@ export function apply(ctx: ClientContext): void {
   // ---- Transparency layer management ------------------------------------
   let activeThemeId: string = store.get().theme;
   let transparencyDisposer: (() => void) | null = null;
+
+  /**
+   * Single authoritative path that asks the DSH `theme` service to activate
+   * `id`. Every caller — first mount, remote settings adoption, settings commit,
+   * and drift recovery — goes through this one function, so the initial and the
+   * manual-switch code paths can never diverge again. The DSH host only ever
+   * persists the built-in `light`/`dark`/`system` preference; third-party theme
+   * ids are session-only, so any later re-adoption of that preference by
+   * `ui-theme` silently drops our theme. {@link assertTheme} is therefore
+   * re-invoked from the `theme/change` guard below whenever that happens.
+   */
+  const assertTheme = (id: string) => {
+    if (theme === undefined) return;
+    let active: string | undefined;
+    let registered = false;
+    try {
+      const snapshot = theme.getTheme?.();
+      active = snapshot?.active?.id;
+      registered = snapshot?.themes?.some((definition) => definition.id === id) ?? false;
+    } catch {
+      registered = true; // unknown service shape: fall back to attempting setTheme
+    }
+    if (active === id) {
+      activeThemeId = id;
+      return;
+    }
+    if (!registered) {
+      console.warn(`[dsh-desktop-themes] theme "${id}" is not registered yet; skipping activation`);
+      return;
+    }
+    activeThemeId = id;
+    try {
+      theme.setTheme(id);
+    } catch (error) {
+      console.warn(`[dsh-desktop-themes] cannot activate theme "${id}":`, error);
+      if (active !== undefined) activeThemeId = active;
+    }
+  };
+
   const applyTransparency = (config: DesktopThemesConfig) => {
     if (transparencyDisposer !== null) {
       transparencyDisposer();
@@ -285,16 +331,7 @@ export function apply(ctx: ClientContext): void {
     const themeChanged = next.theme !== prev.theme;
     const customThemesChanged = !deepEqual(next.customThemes, prev.customThemes);
     store.set(next);
-    if (themeChanged) {
-      activeThemeId = next.theme;
-      if (theme !== undefined) {
-        try {
-          theme.setTheme(next.theme);
-        } catch (error) {
-          console.warn('[dsh-desktop-themes] setTheme failed:', error);
-        }
-      }
-    }
+    if (themeChanged) assertTheme(next.theme);
     if (
       themeChanged ||
       customThemesChanged ||
@@ -340,13 +377,64 @@ export function apply(ctx: ClientContext): void {
   applyTransparency(store.get());
   applyEffects(store.get());
   syncCustomThemes(store.get());
-  if (theme !== undefined) {
+  assertTheme(store.get().theme);
+
+  // ---- Boot reconciliation ------------------------------------------------
+  // `ui-theme` re-adopts its durable built-in preference (here `dark`)
+  // asynchronously *after* this plugin has asserted its session-only theme on
+  // mount. Each adoption publishes a `theme/change` whose snapshot the ui-layout
+  // presenter applies LAST in the listener order, so a synchronous re-assert
+  // from inside that dispatch is always painted over by the adoption's own
+  // stale payload. Reconciliation therefore (a) runs on fresh ticks, and
+  // (b) verifies the actual DOM (dark attribute / color-scheme / token
+  // presence), not just the runtime id — a runtime that already says
+  // "mint-breeze" can coexist with a DOM that was left on the dark base.
+  const reconcileTimers: Array<ReturnType<typeof setTimeout>> = [];
+  let reconcileRaf = 0;
+  const reconcileTheme = () => {
+    if (theme === undefined) return;
+    const config = store.get();
+    const wanted = config.theme;
+    const palette = resolvePalette(wanted, config.customThemes);
+    const wantDark = palette?.colorScheme === 'dark';
+    let active: string | undefined;
+    let scheme: string | undefined;
     try {
-      theme.setTheme(store.get().theme);
-    } catch (error) {
-      console.warn('[dsh-desktop-themes] initial setTheme failed:', error);
+      const snapshot = theme.getTheme?.();
+      active = snapshot?.active?.id;
+      scheme = snapshot?.active?.colorScheme;
+    } catch {
+      active = undefined;
     }
+    const body = typeof document !== 'undefined' ? document.body : null;
+    const domDark = body?.hasAttribute('data-ds-dark-theme') ?? false;
+    const htmlScheme = typeof document !== 'undefined' ? document.documentElement.style.colorScheme : '';
+    const labelSet =
+      body !== null && body.style.getPropertyValue('--dsw-alias-label-primary').trim() !== '';
+    const runtimeOk = active === wanted;
+    const domOk = scheme === (wantDark ? 'dark' : 'light') && domDark === wantDark && htmlScheme === (wantDark ? 'dark' : 'light') && labelSet;
+    if (runtimeOk && domOk) return;
+    if (!runtimeOk) {
+      assertTheme(wanted);
+      return;
+    }
+    // Runtime already matches the configured theme, but the DOM still carries a
+    // stale base paint (an adoption's payload that the presenter applied after
+    // our last mint publish). Nudge the official API with the opposite built-in
+    // scheme so a fresh publish cycle ends with the presenter repainting our
+    // theme on top; the drift guard's deferred recover below re-converges any
+    // residual skew.
+    try {
+      theme.setTheme(wantDark ? 'light' : 'dark');
+    } catch {
+      /* built-ins always exist */
+    }
+    assertTheme(wanted);
+  };
+  if (typeof requestAnimationFrame === 'function') {
+    reconcileRaf = requestAnimationFrame(() => reconcileTheme());
   }
+  reconcileTimers.push(setTimeout(reconcileTheme, 350), setTimeout(reconcileTheme, 1400));
 
   // ---- Wallpaper management (IndexedDB) -----------------------------------
   const wallpaperUrls = new Map<string, string>();
@@ -463,14 +551,7 @@ export function apply(ctx: ClientContext): void {
       if (deepEqual(incoming, store.get())) return;
       store.set(incoming);
       syncCustomThemes(incoming);
-      activeThemeId = incoming.theme;
-      if (theme !== undefined) {
-        try {
-          theme.setTheme(incoming.theme);
-        } catch (error) {
-          console.warn('[dsh-desktop-themes] adopt setTheme failed:', error);
-        }
-      }
+      assertTheme(incoming.theme);
       applyDynamic(incoming);
       applyTransparency(incoming);
       applyEffects(incoming);
@@ -481,14 +562,48 @@ export function apply(ctx: ClientContext): void {
   }
 
   // ---- React to theme switches made outside this plugin -------------------
-  // Guard on the active theme id: `overrideTokens` also emits `theme/change`,
+  // Guard on the configured theme: `overrideTokens` also emits `theme/change`,
   // and re-applying on those (id-unchanged) events would loop forever.
   if (theme !== undefined) {
+    let recoverQueued = false;
+    const recoverTheme = () => {
+      recoverQueued = false;
+      if (theme === undefined) return;
+      const before = theme.getTheme?.().active?.id;
+      assertTheme(store.get().theme);
+      const after = theme.getTheme?.().active?.id;
+      if (before !== after) {
+        // Keep one durable breadcrumb: the host re-adopted its built-in
+        // appearance preference over our session-only theme and we restored it.
+        console.warn(`[dsh-desktop-themes] host re-adopted its appearance preference; re-asserted theme "${after}"`);
+      }
+      applyTransparency(store.get());
+    };
     ctx.on('theme/change', (snapshot) => {
       const id = (snapshot as { active?: { id?: string } })?.active?.id;
-      if (id === undefined || id === activeThemeId) return;
+      if (id === undefined) return;
+      if (id === store.get().theme) {
+        activeThemeId = id;
+        return;
+      }
+      // A refresh boots from the DSH host's durable built-in preference
+      // (`light`/`dark`/`system` — here `dark`), and `ui-theme` re-adopts that
+      // preference asynchronously, i.e. *after* this plugin has already
+      // activated its session-only theme id on mount. Each adoption drops our
+      // theme and publishes a snapshot whose payload the ui-layout presenter
+      // applies LAST in this dispatch (it registered after this plugin). A
+      // synchronous re-assert here would therefore be painted over by the very
+      // same event's dark payload — the "half broken" state with the runtime
+      // claiming mint while the DOM stays dark. Recovery must run on a fresh
+      // tick *after* the presenter applied the adoption, so the next publish
+      // ends with our theme painted last — identical to a manual switch.
       activeThemeId = id;
-      applyTransparency(store.get());
+      if (!recoverQueued) {
+        recoverQueued = true;
+        if (typeof queueMicrotask === 'function') queueMicrotask(recoverTheme);
+        else if (typeof Promise !== 'undefined') void Promise.resolve().then(recoverTheme);
+        else setTimeout(recoverTheme, 0);
+      }
     });
   }
 
@@ -541,11 +656,14 @@ export function apply(ctx: ClientContext): void {
     });
   }
 
+
   // ---- Teardown ------------------------------------------------------------
   ctx.effect(
     () => () => {
       if (transparencyDisposer !== null) transparencyDisposer();
       if (rafCancel !== null) rafCancel();
+      if (typeof cancelAnimationFrame === 'function' && reconcileRaf !== 0) cancelAnimationFrame(reconcileRaf);
+      for (const timer of reconcileTimers) clearTimeout(timer);
       effects.dispose();
       for (const url of wallpaperUrls.values()) URL.revokeObjectURL(url);
       wallpaperUrls.clear();

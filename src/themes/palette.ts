@@ -77,6 +77,20 @@ function deriveAccentHover(accent: string, bg: string): string {
 }
 
 /**
+ * Ink drawn on top of `label-primary`-filled surfaces — the semantic inverse of
+ * the primary label color (`design-platform.css` maps it to the opposite end of
+ * the neutral ramp per scheme). The product wordmark paints its HARNESS chip
+ * glyphs with `--dsw-alias-label-primary-inverted` over a `currentColor`
+ * (label-primary) background, so deriving it from the same source as
+ * `label-primary` makes the glyph invisible (same color on same color).
+ */
+function invertedLabelInk(ink: string): string {
+  const light = '#FFFFFF';
+  const dark = '#111113';
+  return contrastRatio(ink, light) >= contrastRatio(ink, dark) ? light : dark;
+}
+
+/**
  * Emit the full alias-token dictionary for a palette. Ink-derived tokens
  * (borders, hover/active fills, scrollbars) are derived from the palette's
  * `textPrimary` so light themes get dark ink and dark themes get light ink
@@ -113,7 +127,7 @@ export function buildThemeTokens(p: ThemePalette): Record<string, string> {
     '--dsw-alias-brand-primary': p.accent,
     '--dsw-alias-brand-primary-invert': p.accentForeground,
     '--dsw-alias-brand-primary-new-colorprimary-new-color': p.accent,
-    '--dsw-alias-brand-text': p.accent,
+    '--dsw-alias-brand-text': p.textPrimary,
 
     // Text.
     '--dsw-alias-label-primary': p.textPrimary,
@@ -124,7 +138,7 @@ export function buildThemeTokens(p: ThemePalette): Record<string, string> {
     '--dsw-alias-label-primary-bluish': p.textPrimary,
     '--dsw-alias-label-primary-dimmed': p.textSecondary,
     '--dsw-alias-label-primary-foreground': p.accentForeground,
-    '--dsw-alias-label-primary-inverted': p.textPrimary,
+    '--dsw-alias-label-primary-inverted': invertedLabelInk(ink),
 
     // Interactive surfaces.
     '--dsw-alias-interactive-bg-hover': rgba(ink, 0.08),
