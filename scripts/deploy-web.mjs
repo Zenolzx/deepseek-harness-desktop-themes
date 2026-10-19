@@ -109,9 +109,16 @@ try {
   runNpm(['run', 'build'], { env: { ...process.env, DTH_BUILD_ID: buildId } });
   console.log('[deploy] build completed; staging package');
 
-  const stagedPackage = { ...sourcePackage, version: installVersion };
+  const stagedPackage = {
+    ...sourcePackage,
+    version: installVersion,
+    // This staging directory contains prebuilt lib files but no build script.
+    scripts: { ...sourcePackage.scripts },
+  };
+  delete stagedPackage.scripts.prepare;
   mkdirSync(join(staging, 'lib'), { recursive: true });
   for (const file of ['client.js', 'index.js']) copyFileSync(join(root, 'lib', file), join(staging, 'lib', file));
+  copyFileSync(join(root, 'cordis.patch.yml'), join(staging, 'cordis.patch.yml'));
   writeFileSync(join(staging, 'package.json'), `${JSON.stringify(stagedPackage, null, 2)}\n`);
   if (existsSync(join(root, 'README.md'))) copyFileSync(join(root, 'README.md'), join(staging, 'README.md'));
   if (existsSync(join(root, 'LICENSE'))) copyFileSync(join(root, 'LICENSE'), join(staging, 'LICENSE'));
@@ -140,6 +147,12 @@ try {
     if (sourceHash !== installedHash) throw new Error(`Hash mismatch for ${file}: ${sourceHash} != ${installedHash}`);
   }
   const installedPackage = JSON.parse(readFileSync(join(installedRoot, 'package.json'), 'utf8'));
+  if (installedPackage.dsh?.bundle?.patch !== './cordis.patch.yml') {
+    throw new Error('Installed package does not declare the desktop-themes bundle patch');
+  }
+  if (!existsSync(join(installedRoot, 'cordis.patch.yml'))) {
+    throw new Error('Installed bundle patch is missing');
+  }
   console.log(`[deploy] verified ${installedPackage.name}@${installedPackage.version}; client/index hashes match`);
 
   if (restart) await restartWeb();

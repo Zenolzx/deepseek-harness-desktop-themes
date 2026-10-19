@@ -66,7 +66,7 @@ cd dsh-desktop-themes
 npm install
 npm run build        # 生成 lib/index.js 与 lib/client.js
 npm run typecheck    # 严格类型检查（无 emit）
-npm test             # 98 个单元测试
+npm test             # 103 个单元测试
 npm run bench        # 可复现的性能微基准
 ```
 
@@ -78,7 +78,7 @@ npm run bench        # 可复现的性能微基准
 生成可安装包：
 
 ```bash
-npm pack            # 产出 dsh-desktop-themes-1.6.0.tgz
+npm pack            # 产出 dsh-desktop-themes-1.7.1.tgz
 ```
 
 ---
@@ -100,7 +100,7 @@ npm pack            # 产出 dsh-desktop-themes-1.6.0.tgz
    - https://github.com/lxgw/LxgwWenKai/releases/latest
    - https://github.com/subframe7536/maple-font/releases/latest
    优先使用静态 TTF，安装到当前用户字体目录；安装后确认系统可以识别 “LXGW WenKai” 和 “Maple Mono”。
-5. 确认 DeepSeek Harness 的 web profile 已初始化。在 cordis.patch.yml 中以幂等方式注册 dsh-desktop-themes：已有配置不要重复添加，修改前创建备份，不要破坏其他插件配置。
+5. 确认 DeepSeek Harness 的 web profile 已初始化。插件包自带组合层，不要手动向 profile 的 cordis.patch.yml 添加 desktop-themes 行；若已有旧版手工行，先备份并移除该行。
 6. 在仓库目录运行 npm run deploy:web 安装最新构建。若当前系统不能由脚本自动重启，则安全重启 dsh web。
 7. 验证 dsh plugin --profile web list 能看到插件、http://127.0.0.1:3080 可访问，并确认“设置 → 桌面外观”出现。然后将界面字体设为 LXGW WenKai、代码字体设为 Maple Mono；如果不能自动操作界面，明确告诉我最后两次点击的位置。
 8. 最后汇报仓库路径、插件版本、构建/测试结果、字体安装状态、备份文件位置和访问地址。不得输出或上传本机密钥、照片及其他隐私文件。
@@ -112,29 +112,21 @@ npm pack            # 产出 dsh-desktop-themes-1.6.0.tgz
 
 ## 手动安装
 
-插件由 **宿主侧（设置持久化）+ 客户端侧（主题/外观/设置页）** 组成，安装分两步：
+插件由 **宿主侧（设置持久化）+ 客户端侧（主题/外观/设置页）** 组成。安装包声明了 `dsh.bundle`，会自动注册插件行。
 
 ### 1. 安装依赖包
 
 ```bash
-# 本地路径安装（开发/分发）
-dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes
+# 安装构建好的 tgz（推荐，桌面端插件管理器也可选择此文件）
+dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.7.1.tgz
 
 # 或从 npm 安装（若已发布）
 dsh plugin --profile web add dsh-desktop-themes
 ```
 
-### 2. 在 profile 的 `cordis.patch.yml` 注册插件行
+从 GitHub 源码地址直接安装时，包的 `prepare` 脚本需要在安装端获准执行构建；若插件管理器不支持允许构建脚本，请使用预构建的 `.tgz` 包。旧版手工写入 profile `cordis.patch.yml` 的 `desktop-themes` 行应在升级前备份并移除，避免重复挂载。
 
-编辑 `$DSH_HOME/profiles/web/cordis.patch.yml`（Windows 为 `%USERPROFILE%\.dsh\profiles\web\cordis.patch.yml`），追加：
-
-```yaml
-- insert:
-    - id: desktop-themes
-      name: dsh-desktop-themes
-```
-
-### 3. 重启
+### 2. 重启
 
 ```bash
 dsh web
@@ -157,10 +149,9 @@ npm run deploy:web
 卸载即恢复原始外观——插件没有修改任何宿主文件，所有副作用（主题注册、样式注入、透明度 token 层、粒子 Canvas、设置命名空间）都随插件 fiber 的 dispose 释放。
 
 ```bash
-# 1. 移除 profile 组合行（删除 `- id: desktop-themes` 行）
-# 2. 移除依赖
+# 1. 移除插件及其组合层
 dsh plugin --profile web remove dsh-desktop-themes
-# 3. 重启
+# 2. 重启
 dsh web
 ```
 
@@ -234,7 +225,7 @@ npm run typecheck && npm test && npm run build
 结果（当前环境 Node 24 / Windows）：
 
 - `tsc --noEmit`：0 错误
-- 单元测试：**98 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体回退、壁纸校验、性能档位、导入导出与样式清理）
+- 单元测试：**103 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体回退、壁纸校验、性能档位、导入导出与样式清理）
 - 构建：`lib/index.js` + `lib/client.js` 成功产出
 
 ---
@@ -254,7 +245,8 @@ npm run typecheck && npm test && npm run build
 ```
 dsh-desktop-themes/
 ├── manifest.json              # 人读插件元数据（权威 manifest 见 package.json#dsh）
-├── package.json               # dsh.client manifest + 构建/测试脚本
+├── package.json               # dsh.bundle + dsh.client manifest、构建/测试脚本
+├── cordis.patch.yml           # 安装时自动应用的插件组合层
 ├── tsconfig.json
 ├── scripts/
 │   ├── build.mjs              # esbuild 构建宿主 + 客户端 bundle
@@ -276,6 +268,6 @@ dsh-desktop-themes/
 │   ├── storage/wallpaper-store.ts # IndexedDB 壁纸 Blob 存储
 │   ├── settings/              # 设置页 / 控件 / 预览 / 双语
 │   └── utils/                 # 颜色 / store / 样式控制器
-├── tests/                     # 98 个单元测试
+├── tests/                     # 103 个单元测试
 └── docs/                      # install / configuration / fonts / platform / performance
 ```
