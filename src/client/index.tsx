@@ -122,11 +122,12 @@ function applyContentAttribute(config: DesktopThemesConfig, style: ContentStyle)
   const root = document.documentElement;
   root.dataset.dthContent = style;
   root.style.setProperty('--dth-diff-tint', String(Math.min(2, Math.max(0.25, config.appearance.diffTint))));
-  // Decoration layering: only put the effect canvas *behind* the shell when the
-  // ground is actually translucent (wallpaper + transparency). Otherwise the
-  // opaque base would hide every particle, so the canvas stays on top.
-  const under = style === 'refined' && config.wallpaper.enabled && config.appearance.transparencyEnabled;
-  root.dataset.dthEffects = under ? 'under' : 'over';
+  // The decoration layers always stay above the app shell. Putting the shell
+  // above them (the 1.7.0 "under" mode) silently erased every particle and the
+  // ambient glow whenever a shell surface painted over the canvas — most
+  // visibly on the home screen. Readability is handled by the opaque content
+  // cards instead, so particles can never be lost to a stacking change.
+  root.dataset.dthEffects = 'over';
 }
 
 function buildLayoutCss(config: DesktopThemesConfig): string {

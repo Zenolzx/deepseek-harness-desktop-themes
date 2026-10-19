@@ -670,22 +670,18 @@
 /* Effect layers (engine-owned).
  * They sit ABOVE the theme background (painted on `body`). A negative z-index
  * would paint behind `body`'s own background and stay invisible, so they are
- * positive and `#root` is promoted to sit above them when the content layer is
- * active — opaque content surfaces then occlude the particles instead of
- * having dots drift across code. */
+ * positive. `#root` deliberately stays at z-index 1: the shell must never be
+ * promoted above the decorations, because any shell surface that paints over
+ * the canvas would silently erase the particles and the ambient glow. The
+ * refined reading cards below rely on their own opaque background instead. */
 #root {
   position: relative;
   z-index: 1;
 }
 
-/* Refined content layer + translucent ground: shell above the decorations. */
-html[data-dth-effects='under'] #root {
-  z-index: 4;
-}
-
 /* ---- Refined content layer ------------------------------------------------
- * Reading surfaces become opaque cards so the particle canvas cannot drift
- * across code. `[data-review-view]` is the product's stable hook on the diff
+ * Reading surfaces become opaque cards for legibility over a translucent
+ * ground. `[data-review-view]` is the product's stable hook on the diff
  * body (see FileDiff.module.css); the row/gutter/marker colors come from the
  * palette-derived tokens written by the content layer. */
 html[data-dth-content='refined'] [data-review-view] {

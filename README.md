@@ -78,7 +78,7 @@ npm run bench        # 可复现的性能微基准
 生成可安装包：
 
 ```bash
-npm pack            # 产出 dsh-desktop-themes-1.7.1.tgz
+npm pack            # 产出 dsh-desktop-themes-1.7.2.tgz
 ```
 
 ---
@@ -118,7 +118,7 @@ npm pack            # 产出 dsh-desktop-themes-1.7.1.tgz
 
 ```bash
 # 安装构建好的 tgz（推荐，桌面端插件管理器也可选择此文件）
-dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.7.1.tgz
+dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.7.2.tgz
 
 # 或从 npm 安装（若已发布）
 dsh plugin --profile web add dsh-desktop-themes
