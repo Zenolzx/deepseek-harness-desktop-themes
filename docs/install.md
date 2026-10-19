@@ -80,7 +80,28 @@ npm run deploy:web:no-restart
 1. 主题选择器出现量子蓝 / 极光幻境 / 薄荷清风 / 樱雾 / 日落流光 / 黑金星穹 六套主题。
 2. 选择任一主题，界面 token 即时切换。
 3. 修改字体/透明度/壁纸/毛玻璃/粒子，实时预览。
-4. 刷新页面后配置仍保留（写入 `$DSH_HOME/settings.yaml`）；壁纸跨会话保留（IndexedDB）。
+4. 刷新页面后配置仍保留（0.1.x 写入 `$DSH_HOME/settings.yaml` 的 `ui-desktop-themes` 分节；0.2.x 写入 profile 的 `cordis.patch.yml` 中 `desktop-themes` 条目的 `config`）；壁纸跨会话保留（IndexedDB）。
+
+## DSH 0.2.x 桌面端（Electron）
+
+0.2 桌面端使用独立的 `desktop` profile，并按插件清单声明的 DSH 版本范围做准入检查。1.6.1 起同一份构建兼容 0.1.x 与 0.2.x（peer 范围为 `>=0.1.0-rc.6 <0.3.0`），可以任选一种方式安装：
+
+- 在桌面端的插件管理器中安装本地目录 / tgz；
+- 或用桌面端自带的 CLI：
+
+```bash
+"<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add file:D:/dsh-pack/dsh-desktop-themes-1.7.0.tgz
+```
+
+安装后同样需要在 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml` 注册插件行：
+
+```yaml
+- insert:
+    - id: desktop-themes
+      name: dsh-desktop-themes
+```
+
+设置持久化：0.2 桌面端的客户端经 `configForms.get('desktop-themes')` 读写该条目的 `Config`（保存在 profile 的 `cordis.patch.yml`）；0.1 Web 端仍使用 `ui-desktop-themes` 命名空间。
 
 ## 卸载
 
@@ -97,7 +118,7 @@ dsh web
 ## 恢复原始外观
 
 - 移除插件行 + 重启即恢复（插件未改任何宿主文件，所有副作用随 fiber 释放）。
-- 若要同时清掉插件写入的设置，编辑 `$DSH_HOME/settings.yaml`，删除 `ui-desktop-themes:` 分节。
+- 若要同时清掉插件写入的设置，0.1.x 编辑 `$DSH_HOME/settings.yaml` 删除 `ui-desktop-themes:` 分节；0.2.x 删除 profile `cordis.patch.yml` 中 `desktop-themes` 条目的 `config`。
 - 壁纸字节存于浏览器 IndexedDB 数据库 `dsh-desktop-themes`，可在浏览器 DevTools → Application → IndexedDB 中手动删除。
 
 ## 排查

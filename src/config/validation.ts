@@ -23,6 +23,7 @@ import type {
   AppearanceConfig,
   BorderRadiusLevel,
   BlurLevel,
+  ContentStyle,
   ContentWidthLevel,
   CustomThemeConfig,
   CustomThemeColors,
@@ -59,6 +60,7 @@ const ANIMATION_SPEEDS = ['still', 'gentle', 'standard', 'active'] as const;
 const DENSITIES = ['off', 'low', 'medium', 'high'] as const;
 const LIGHT_INTENSITIES: readonly LightIntensity[] = ['off', 'soft', 'standard', 'bright'];
 const RADIUS_LEVELS: readonly BorderRadiusLevel[] = ['compact', 'standard', 'soft'];
+const CONTENT_STYLES: readonly ContentStyle[] = ['classic', 'refined'];
 const WIDTH_LEVELS: readonly ContentWidthLevel[] = ['compact', 'standard', 'wide'];
 const PET_STYLES: readonly PetStyle[] = ['moonfox'];
 const VOICE_STYLES = ['normal', 'gentle', 'cheerful', 'playful', 'calm', 'robot'] as const;
@@ -191,6 +193,8 @@ function coerceAppearance(value: unknown): AppearanceConfig {
     borderRadius: asEnum(src.borderRadius, RADIUS_LEVELS, DEFAULT_APPEARANCE.borderRadius),
     contentWidth: asEnum(src.contentWidth, WIDTH_LEVELS, DEFAULT_APPEARANCE.contentWidth),
     animationsEnabled: asBoolean(src.animationsEnabled, DEFAULT_APPEARANCE.animationsEnabled),
+    contentStyle: asEnum(src.contentStyle, CONTENT_STYLES, DEFAULT_APPEARANCE.contentStyle),
+    diffTint: asNumber(src.diffTint, DEFAULT_APPEARANCE.diffTint, 0.25, 2, 0.25),
   };
 }
 

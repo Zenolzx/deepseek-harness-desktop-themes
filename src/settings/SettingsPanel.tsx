@@ -14,6 +14,7 @@ import { exportConfigJson, parseImportedConfig } from '../config/transfer.ts';
 import { THEMES, resolvePalette, type DesktopTheme } from '../themes/index.ts';
 import type { ThemePalette } from '../themes/palette.ts';
 import { WALLPAPER_EXTENSIONS } from '../appearance/wallpaper.ts';
+import { effectiveContentStyle, supportsContentVariant } from '../appearance/content.ts';
 import {
   CODE_FONT_PRESETS,
   UI_FONT_PRESETS,
@@ -554,6 +555,30 @@ function GlassSection(props: { config: DesktopThemesConfig; t: Translate; update
       <Slider id="dth-tr-input" label={props.t('transparency.input')} min={0.55} max={1} step={0.01} value={appearance.inputOpacity} onChange={(v) => setAppearance({ inputOpacity: v })} format={(v) => `${Math.round(v * 100)}%`} disabled={!appearance.transparencyEnabled} />
       <TransparencyPreview config={props.config} />
       <Notice tone="info">{props.t('transparency.warn')}</Notice>
+
+      <Segmented<'classic' | 'refined'>
+        id="dth-content-style"
+        label={props.t('content.style')}
+        value={effectiveContentStyle(props.config)}
+        options={[
+          { value: 'classic', label: props.t('content.style.classic') },
+          { value: 'refined', label: props.t('content.style.refined') },
+        ]}
+        onChange={(v) => setAppearance({ contentStyle: v })}
+        disabled={!supportsContentVariant(props.config.theme)}
+      />
+      <Segmented<'0.5' | '1'>
+        id="dth-content-tint"
+        label={props.t('content.tint')}
+        value={appearance.diffTint <= 0.5 ? '0.5' : '1'}
+        options={[
+          { value: '0.5', label: props.t('content.tint.soft') },
+          { value: '1', label: props.t('content.tint.standard') },
+        ]}
+        onChange={(v) => setAppearance({ diffTint: Number(v) })}
+      />
+      <Notice tone="info">{props.t('content.hint')}</Notice>
+      {supportsContentVariant(props.config.theme) ? null : <Notice tone="info">{props.t('content.variantOnly')}</Notice>}
 
       <Toggle id="dth-glass-enabled" label={props.t('glass.enabled')} checked={glass.enabled} onChange={(v) => setGlass({ enabled: v })} />
       <Segmented

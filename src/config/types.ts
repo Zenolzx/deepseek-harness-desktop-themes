@@ -36,6 +36,16 @@ export type LightIntensity = 'off' | 'soft' | 'standard' | 'bright';
 /** Corner-radius presets. */
 export type BorderRadiusLevel = 'compact' | 'standard' | 'soft';
 
+/**
+ * Content-surface treatment.
+ *
+ * - `classic` keeps the product's own diff/code surfaces untouched (the
+ *   pre-1.7 look) so a user can fall back without losing the theme.
+ * - `refined` applies the theme-derived content layer: low-contrast diff rows,
+ *   a thin marker bar, a card-like document preview and opaque code surfaces.
+ */
+export type ContentStyle = 'classic' | 'refined';
+
 /** Desktop pet character style. */
 export type PetStyle = 'moonfox';
 
@@ -98,6 +108,10 @@ export interface AppearanceConfig {
   contentWidth: ContentWidthLevel;
   /** Whether theme transitions / hover animations are enabled. */
   animationsEnabled: boolean;
+  /** Content-surface treatment (see {@link ContentStyle}). */
+  contentStyle: ContentStyle;
+  /** Diff highlight strength multiplier (0.5 = half, 1 = standard). */
+  diffTint: number;
 }
 
 export interface WallpaperConfig {
@@ -255,8 +269,18 @@ export interface DesktopThemesConfig {
   pet: PetConfig;
 }
 
-/** The settings namespace this plugin owns on the Host. */
+/**
+ * Legacy (DSH 0.1.x) settings namespace registered through
+ * `ctx.settings.register()`. The browser binds it through `settingsScope`.
+ */
 export const SETTINGS_NAMESPACE = 'ui-desktop-themes';
+
+/**
+ * DSH 0.2.x serves settings per profile entry id. This plugin's row in
+ * `cordis.patch.yml` uses `id: desktop-themes`, so the browser binds
+ * `ctx.configForms.get(CONFIG_ENTRY_ID)`.
+ */
+export const CONFIG_ENTRY_ID = 'desktop-themes';
 
 /** Top-level fields of the persisted settings section (one write each). */
 export type SettingsField = keyof Omit<DesktopThemesConfig, 'schemaVersion'>;

@@ -175,10 +175,16 @@ export function buildThemeTokens(p: ThemePalette): Record<string, string> {
     '--dsw-alias-markdown-placeholder': p.bgSurface2,
 
     // Scrollbars.
-    '--dsw-alias-scrollbar-bg-l1': rgba(p.textSecondary, 0.4),
-    '--dsw-alias-scrollbar-bg-l2': rgba(p.textSecondary, 0.5),
-    '--dsw-alias-scrollbar-hover-l1': rgba(p.textSecondary, 0.55),
-    '--dsw-alias-scrollbar-hover-l2': rgba(p.textSecondary, 0.65),
+    //
+    // The product draws a flat 5px thumb with no track, so the old
+    // `rgba(textSecondary, .4)` read as a dark bar floating over pale content —
+    // visible in every scrollable pane (the diff view's horizontal bar was the
+    // worst offender). Ink-derived low alphas keep the thumb readable but let
+    // it recede into the surface.
+    '--dsw-alias-scrollbar-bg-l1': rgba(ink, 0.14),
+    '--dsw-alias-scrollbar-bg-l2': rgba(ink, 0.18),
+    '--dsw-alias-scrollbar-hover-l1': rgba(ink, 0.28),
+    '--dsw-alias-scrollbar-hover-l2': rgba(ink, 0.34),
 
     // States.
     '--dsw-alias-state-success-primary': p.success,

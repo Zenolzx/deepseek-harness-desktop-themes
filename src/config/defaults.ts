@@ -38,6 +38,8 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   borderRadius: 'soft',
   contentWidth: 'standard',
   animationsEnabled: true,
+  contentStyle: 'refined',
+  diffTint: 1,
 };
 
 export const DEFAULT_WALLPAPER: WallpaperConfig = {

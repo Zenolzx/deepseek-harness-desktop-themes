@@ -47,13 +47,14 @@ const document = {
   removeEventListener() {},
   hidden: false,
   body: {
-    style: { setProperty() {}, removeProperty() {} },
+    style: { setProperty() {}, removeProperty() {}, getPropertyValue() { return ''; } },
     setAttribute() {},
     removeAttribute() {},
+    hasAttribute() { return false; },
     getAttribute() { return null; },
     appendChild() {},
   },
-  documentElement: { style: {} },
+  documentElement: { style: { setProperty() {}, removeProperty() {} }, dataset: {} },
 };
 
 globalThis.document = document;
@@ -137,6 +138,10 @@ const ctx = {
     if (name === 'settingsScope') return settingsScope;
     if (name === 'slots') return slots;
     return undefined;
+  },
+  inject(names, cb) {
+    const child = { get: (name) => (names.includes(name) ? ctx.get(name) : undefined) };
+    cb(child, () => {});
   },
   effect() {},
   on(_event, _cb) {},

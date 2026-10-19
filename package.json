@@ -1,6 +1,6 @@
 {
   "name": "dsh-desktop-themes",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "DeepSeek Harness Desktop Themes — an installable, configurable, uninstallable desktop appearance plugin: six signature themes, font presets, live particle/glow effects, durable custom wallpaper, glassmorphism, custom color themes, and a draggable desktop pet with a quick-switch menu.",
   "keywords": [
     "deepseek-harness",
@@ -51,13 +51,13 @@
   "peerDependencies": {
     "react": "^18.2.0",
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-api-remotes": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-connection": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-theme": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-settings": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-api-remotes": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-client-connection": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-client-ui-theme": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-client-ui-settings": ">=0.1.0-rc.6 <0.3.0",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.6 <0.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

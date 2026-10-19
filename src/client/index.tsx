@@ -4,7 +4,8 @@
  * Responsibilities (all reversible, all released on dispose):
  *  1. Register the six built-in themes + any custom themes with the DSH
  *     `theme` service.
- *  2. Bind the `ui-desktop-themes` settings scope and mirror it into a
+ *  2. Bind this plugin's settings (DSH 0.2.x `configForms.get('desktop-themes')`
+ *     or the DSH 0.1.x `ui-desktop-themes` scope) and mirror it into a
  *     reactive store (debounced, durable persistence).
  *  3. Present the config: inject static + dynamic CSS (fonts, wallpaper,
  *     glass, layout) and stack the transparency token layer.
@@ -15,10 +16,11 @@
 
 import { createDefaultConfig } from '../config/defaults.ts';
 import { coerceConfig } from '../config/validation.ts';
-import { SETTINGS_NAMESPACE, type DesktopThemesConfig, type SettingsField } from '../config/types.ts';
+import { CONFIG_ENTRY_ID, SETTINGS_NAMESPACE, type ContentStyle, type DesktopThemesConfig, type SettingsField } from '../config/types.ts';
 import { THEMES, buildCustomThemeDefinition, resolvePalette } from '../themes/index.ts';
 import { buildFontCss } from '../appearance/fonts.ts';
 import { buildTransparencyOverrides, isTransparencyActive } from '../appearance/transparency.ts';
+import { buildContentLayer, effectiveContentStyle } from '../appearance/content.ts';
 import { buildWallpaperCss, validateWallpaperFile } from '../appearance/wallpaper.ts';
 import { buildGlassCss, supportsBackdropFilter } from '../appearance/glass.ts';
 import { createStyleController, scheduleRaf } from '../utils/style.ts';
@@ -38,6 +40,7 @@ import { loadConfigSnapshot, saveConfigSnapshot } from '../storage/config-store.
 
 const PLUGIN_ID = 'dsh-desktop-themes';
 const OVERRIDE_SOURCE = PLUGIN_ID;
+const CONTENT_SOURCE = `${PLUGIN_ID}/content`;
 const PERSIST_DEBOUNCE_MS = 350;
 const SETTINGS_FIELDS: readonly SettingsField[] = [
   'theme',
@@ -73,11 +76,18 @@ interface ThemeRuntimeLike {
 interface SettingsScopeLike {
   getSnapshot(): { status: 'loading' | 'ready' | 'unavailable'; value: unknown; writable: boolean };
   subscribe(listener: () => void): () => void;
-  set(field: string, value: unknown): Promise<void>;
+  /** 0.2.x answers whether the Host accepted the write; 0.1.x resolves void. */
+  set(field: string, value: unknown): Promise<boolean | void>;
 }
 
+/** DSH 0.1.x settings binder (`ctx.settingsScope`). */
 interface SettingsScopeBinderLike {
   bind(spec: { namespace: string }): SettingsScopeLike;
+}
+
+/** DSH 0.2.x per-entry configuration forms (`ctx.configForms`). */
+interface ConfigFormsLike {
+  get(entryId: string): SettingsScopeLike;
 }
 
 interface SlotsLike {
@@ -87,14 +97,37 @@ interface SlotsLike {
 
 interface ClientContext {
   get(name: string): unknown;
+  inject(services: string[], callback: (ctx: ClientContextWithServices) => void): void;
   effect(fn: () => (() => void) | void, label?: string): void;
   on(event: string, listener: (...args: unknown[]) => void): void;
 }
 
-export const inject = ['theme', 'settingsScope', 'slots', 'connection', 'remote'] as const;
+/** A context child that is allowed to read the services it injected. */
+interface ClientContextWithServices extends ClientContext {
+  get(name: string): unknown;
+}
+
+export const inject = ['theme', 'slots', 'connection', 'remote'] as const;
 
 const RADIUS: Record<string, string> = { compact: '6px', standard: '10px', soft: '16px' };
 const CONTENT_MAX: Record<string, string> = { compact: '820px', standard: '1080px', wide: '100%' };
+
+/**
+ * Reflect the content treatment on the document root so the static stylesheet
+ * can react (opaque content surfaces, marker geometry) without re-injecting a
+ * stylesheet on every settings change.
+ */
+function applyContentAttribute(config: DesktopThemesConfig, style: ContentStyle): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.dataset.dthContent = style;
+  root.style.setProperty('--dth-diff-tint', String(Math.min(2, Math.max(0.25, config.appearance.diffTint))));
+  // Decoration layering: only put the effect canvas *behind* the shell when the
+  // ground is actually translucent (wallpaper + transparency). Otherwise the
+  // opaque base would hide every particle, so the canvas stays on top.
+  const under = style === 'refined' && config.wallpaper.enabled && config.appearance.transparencyEnabled;
+  root.dataset.dthEffects = under ? 'under' : 'over';
+}
 
 function buildLayoutCss(config: DesktopThemesConfig): string {
   const radius = RADIUS[config.appearance.borderRadius] ?? RADIUS.standard;
@@ -117,7 +150,6 @@ function prefersReducedMotion(): boolean {
 
 export function apply(ctx: ClientContext): void {
   const theme = ctx.get('theme') as ThemeRuntimeLike | undefined;
-  const settingsScope = ctx.get('settingsScope') as SettingsScopeBinderLike | undefined;
   const slots = ctx.get('slots') as SlotsLike | undefined;
 
   // An explicit local save is available before the asynchronous host settings
@@ -168,6 +200,7 @@ export function apply(ctx: ClientContext): void {
   // ---- Transparency layer management ------------------------------------
   let activeThemeId: string = store.get().theme;
   let transparencyDisposer: (() => void) | null = null;
+  let contentDisposer: (() => void) | null = null;
 
   /**
    * Single authoritative path that asks the DSH `theme` service to activate
@@ -217,6 +250,26 @@ export function apply(ctx: ClientContext): void {
       OVERRIDE_SOURCE,
       buildTransparencyOverrides(config.appearance, activeThemeId, config.wallpaper.enabled, config.customThemes),
     );
+  };
+
+  /**
+   * Theme the content surfaces the product styles on its own (diff rows,
+   * document preview, selection). `classic` releases the layer so the
+   * product's original surfaces come back unchanged.
+   */
+  const applyContent = (config: DesktopThemesConfig) => {
+    if (contentDisposer !== null) {
+      contentDisposer();
+      contentDisposer = null;
+    }
+    const style = effectiveContentStyle(config);
+    applyContentAttribute(config, style);
+    if (theme === undefined || style === 'classic') return;
+    const palette = resolvePalette(config.theme, config.customThemes);
+    if (palette === undefined) return;
+    const layer = buildContentLayer(palette, { style, tint: config.appearance.diffTint });
+    if (Object.keys(layer).length === 0) return;
+    contentDisposer = theme.overrideTokens(CONTENT_SOURCE, layer);
   };
 
   // ---- Dynamic CSS (fonts / wallpaper / glass / layout) -------------------
@@ -283,7 +336,9 @@ export function apply(ctx: ClientContext): void {
 
   const flushPersist = async (explicit = false): Promise<boolean> => {
     persistTimer = null;
-    const localSaved = explicit ? saveConfigSnapshot(store.get()) : true;
+    // Local snapshot first: it keeps the chosen appearance across a refresh
+    // even when the Host offers no settings service or a write fails.
+    const localSaved = saveConfigSnapshot(store.get());
     if (scope === null || Object.keys(pending).length === 0) {
       const ok = explicit ? localSaved : true;
       saveNotifier.set({ saving: false, saved: ok, failed: !ok });
@@ -293,7 +348,7 @@ export function apply(ctx: ClientContext): void {
     const writes = Object.entries(pending);
     pending = {};
     const results = await Promise.allSettled(writes.map(([field, value]) => scope!.set(field, value)));
-    const remoteSaved = results.every((result) => result.status === 'fulfilled');
+    const remoteSaved = results.every((result) => result.status === 'fulfilled' && result.value !== false);
     const ok = localSaved && remoteSaved;
     saveNotifier.set({ saving: false, saved: ok, failed: !ok });
     if (ok) setTimeout(() => saveNotifier.set({ saving: false, saved: false, failed: false }), 1800);
@@ -350,6 +405,15 @@ export function apply(ctx: ClientContext): void {
     if (
       themeChanged ||
       customThemesChanged ||
+      next.appearance.contentStyle !== prev.appearance.contentStyle ||
+      next.appearance.diffTint !== prev.appearance.diffTint ||
+      // The decoration layering depends on the ground being translucent.
+      next.appearance.transparencyEnabled !== prev.appearance.transparencyEnabled ||
+      next.wallpaper.enabled !== prev.wallpaper.enabled
+    ) applyContent(next);
+    if (
+      themeChanged ||
+      customThemesChanged ||
       !deepEqual(next.effects, prev.effects) ||
       !deepEqual(next.performance, prev.performance)
     ) applyEffects(next);
@@ -375,6 +439,7 @@ export function apply(ctx: ClientContext): void {
   // ---- Apply defaults immediately (first paint before scope read) ---------
   applyDynamic(store.get());
   applyTransparency(store.get());
+  applyContent(store.get());
   applyEffects(store.get());
   syncCustomThemes(store.get());
   assertTheme(store.get().theme);
@@ -528,38 +593,57 @@ export function apply(ctx: ClientContext): void {
   };
 
   // ---- Settings scope (persistence) ---------------------------------------
-  if (settingsScope !== undefined) {
+  // DSH 0.2.x serves settings per profile entry id through `ctx.configForms`
+  // (`configForms.get('desktop-themes')`); DSH 0.1.x binds the plugin-owned
+  // namespace through `ctx.settingsScope`. Neither service is in the static
+  // inject list, so either runtime can load the plugin; the available binder
+  // wins, and a runtime with neither keeps the local snapshot fallback.
+  const adoptFromScope = () => {
+    const snapshot = scope?.getSnapshot();
+    if (snapshot === undefined || snapshot.status !== 'ready' || snapshot.value === undefined) return;
+    const incoming = hydrateBuiltinWallpaper(coerceConfig(snapshot.value));
+    if (explicitBootstrap !== null) {
+      const saved = hydrateBuiltinWallpaper(explicitBootstrap);
+      explicitBootstrap = null;
+      if (!deepEqual(incoming, saved)) {
+        queueAllFields(saved);
+        void flushPersist();
+        return;
+      }
+    }
+    if (deepEqual(incoming, store.get())) return;
+    store.set(incoming);
+    syncCustomThemes(incoming);
+    assertTheme(incoming.theme);
+    applyDynamic(incoming);
+    applyTransparency(incoming);
+    applyContent(incoming);
+    applyEffects(incoming);
+    void restoreDurableWallpaper(incoming);
+  };
+
+  const bindScope = (open: () => SettingsScopeLike, label: string) => {
+    if (scope !== null) return;
     try {
-      scope = settingsScope.bind({ namespace: SETTINGS_NAMESPACE });
+      const candidate = open();
+      scope = candidate;
+      scope.subscribe(adoptFromScope);
+      adoptFromScope();
     } catch (error) {
-      console.warn('[dsh-desktop-themes] settingsScope.bind failed:', error);
+      console.warn(`[dsh-desktop-themes] ${label} binding failed:`, error);
       scope = null;
     }
-    const adopt = () => {
-      const snapshot = scope?.getSnapshot();
-      if (snapshot === undefined || snapshot.status !== 'ready' || snapshot.value === undefined) return;
-      const incoming = hydrateBuiltinWallpaper(coerceConfig(snapshot.value));
-      if (explicitBootstrap !== null) {
-        const saved = hydrateBuiltinWallpaper(explicitBootstrap);
-        explicitBootstrap = null;
-        if (!deepEqual(incoming, saved)) {
-          queueAllFields(saved);
-          void flushPersist();
-          return;
-        }
-      }
-      if (deepEqual(incoming, store.get())) return;
-      store.set(incoming);
-      syncCustomThemes(incoming);
-      assertTheme(incoming.theme);
-      applyDynamic(incoming);
-      applyTransparency(incoming);
-      applyEffects(incoming);
-      void restoreDurableWallpaper(incoming);
-    };
-    scope?.subscribe(adopt);
-    adopt();
-  }
+  };
+
+  ctx.inject(['configForms'], (child) => {
+    const forms = child.get('configForms') as ConfigFormsLike | undefined;
+    if (forms !== undefined) bindScope(() => forms.get(CONFIG_ENTRY_ID), 'configForms');
+  });
+
+  ctx.inject(['settingsScope'], (child) => {
+    const binder = child.get('settingsScope') as SettingsScopeBinderLike | undefined;
+    if (binder !== undefined) bindScope(() => binder.bind({ namespace: SETTINGS_NAMESPACE }), 'settingsScope');
+  });
 
   // ---- React to theme switches made outside this plugin -------------------
   // Guard on the configured theme: `overrideTokens` also emits `theme/change`,
@@ -578,6 +662,7 @@ export function apply(ctx: ClientContext): void {
         console.warn(`[dsh-desktop-themes] host re-adopted its appearance preference; re-asserted theme "${after}"`);
       }
       applyTransparency(store.get());
+      applyContent(store.get());
     };
     ctx.on('theme/change', (snapshot) => {
       const id = (snapshot as { active?: { id?: string } })?.active?.id;
@@ -661,6 +746,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () => () => {
       if (transparencyDisposer !== null) transparencyDisposer();
+      if (contentDisposer !== null) contentDisposer();
       if (rafCancel !== null) rafCancel();
       if (typeof cancelAnimationFrame === 'function' && reconcileRaf !== 0) cancelAnimationFrame(reconcileRaf);
       for (const timer of reconcileTimers) clearTimeout(timer);

@@ -21,6 +21,7 @@ const PARTICLE_DENSITIES = ['off', 'low', 'medium', 'high'] as const;
 const LIGHT_INTENSITIES = ['off', 'soft', 'standard', 'bright'] as const;
 const RADIUS_LEVELS = ['compact', 'standard', 'soft'] as const;
 const WIDTH_LEVELS = ['compact', 'standard', 'wide'] as const;
+const CONTENT_STYLES = ['classic', 'refined'] as const;
 const PET_STYLES = ['moonfox'] as const;
 const VOICE_STYLES = ['normal', 'gentle', 'cheerful', 'playful', 'calm', 'robot'] as const;
 const EFFECT_PRESETS = [
@@ -35,6 +36,19 @@ const EFFECT_PRESETS = [
   'breathing',
   'custom',
 ] as const;
+
+/**
+ * Mark a field volatile when the running schemastery supports it.
+ *
+ * DSH 0.2.x exposes a plugin's `Config` schema as its settings entry and serves
+ * only `.volatile()` fields through `settings.describe`/`configForms`. DSH
+ * 0.1.x ships schemastery 3.18.1, which has no `.volatile()`; there the same
+ * schema stays ordinary and is registered through `ctx.settings.register()`.
+ */
+const volatile = <T>(schema: T): T => {
+  const candidate = schema as T & { volatile?: () => T };
+  return typeof candidate.volatile === 'function' ? candidate.volatile() : schema;
+};
 
 const fontSchema = z.object({
   uiPreset: z.string().default('system'),
@@ -63,6 +77,8 @@ const appearanceSchema = z.object({
   borderRadius: z.union(RADIUS_LEVELS).default('soft'),
   contentWidth: z.union(WIDTH_LEVELS).default('standard'),
   animationsEnabled: z.boolean().default(true),
+  contentStyle: z.union(CONTENT_STYLES).default('refined'),
+  diffTint: z.number().min(0.25).max(2).step(0.25).default(1),
 });
 
 const wallpaperSchema = z.object({
@@ -147,18 +163,18 @@ const petSchema = z.object({
 });
 
 export const DesktopThemesSchema = z.object({
-  schemaVersion: z.number().min(1).max(SCHEMA_VERSION).default(SCHEMA_VERSION),
+  schemaVersion: volatile(z.number().min(1).max(SCHEMA_VERSION).default(SCHEMA_VERSION)),
   // Built-in or custom theme id (custom ids are `custom-<n>`).
-  theme: z.string().default('obsidian-gold'),
-  font: fontSchema,
-  appearance: appearanceSchema,
-  wallpaper: wallpaperSchema,
-  glass: glassSchema,
-  effects: effectsSchema,
-  performance: performanceSchema,
-  customThemes: z.array(customThemeSchema).default([]),
-  recentWallpapers: z.array(z.string()).default([]),
-  pet: petSchema,
+  theme: volatile(z.string().default('obsidian-gold')),
+  font: volatile(fontSchema),
+  appearance: volatile(appearanceSchema),
+  wallpaper: volatile(wallpaperSchema),
+  glass: volatile(glassSchema),
+  effects: volatile(effectsSchema),
+  performance: volatile(performanceSchema),
+  customThemes: volatile(z.array(customThemeSchema).default([])),
+  recentWallpapers: volatile(z.array(z.string()).default([])),
+  pet: volatile(petSchema),
 });
 
 export type DesktopThemesSchemaType = ReturnType<typeof DesktopThemesSchema>;
