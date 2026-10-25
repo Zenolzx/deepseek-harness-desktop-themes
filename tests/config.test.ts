@@ -9,7 +9,7 @@ test('default config has six themes and full sub-objects', () => {
   assert.equal(DEFAULT_CONFIG.schemaVersion, 3);
   assert.ok(DEFAULT_CONFIG.font.uiPreset.length > 0);
   assert.ok(DEFAULT_CONFIG.font.codePreset.length > 0);
-  assert.equal(DEFAULT_CONFIG.appearance.windowOpacity, 0.9);
+  assert.equal(DEFAULT_CONFIG.appearance.windowOpacity, 0.94);
   assert.equal(DEFAULT_CONFIG.wallpaper.enabled, true);
   assert.equal(DEFAULT_CONFIG.wallpaper.sourceId, 'builtin:obsidian-gold');
   assert.equal(DEFAULT_CONFIG.glass.enabled, true);

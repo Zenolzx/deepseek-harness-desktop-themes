@@ -128,6 +128,10 @@ export function contrastIssues(colors: CustomThemeColors): string[] {
   const issues: string[] = [];
   const textRatio = contrastRatio(colors.text, colors.background);
   if (textRatio < 4.5) issues.push(`text/background ratio ${textRatio.toFixed(2)} < 4.5`);
+  const panelRatio = contrastRatio(colors.text, colors.panel);
+  if (panelRatio < 4.5) issues.push(`text/panel ratio ${panelRatio.toFixed(2)} < 4.5`);
+  const primaryRatio = contrastRatio(colors.primary, colors.background);
+  if (primaryRatio < 3) issues.push(`primary/background ratio ${primaryRatio.toFixed(2)} < 3`);
   return issues;
 }
 
@@ -140,9 +144,22 @@ export function foregroundOnAccent(accent: string): string {
 
 /** Fix text contrast against the background in place. */
 export function fixContrast(colors: CustomThemeColors): CustomThemeColors {
+  // The same ink appears on the window and raised panels. Use the candidate
+  // with the strongest worst-case contrast across both surfaces.
+  const candidates = [
+    ensureContrast(ensureContrast(colors.text, colors.background, 4.5), colors.panel, 4.5),
+    ensureContrast(ensureContrast(colors.text, colors.panel, 4.5), colors.background, 4.5),
+    '#111113',
+    '#ffffff',
+  ];
+  const text = candidates.reduce((best, candidate) => {
+    const floor = Math.min(contrastRatio(candidate, colors.background), contrastRatio(candidate, colors.panel));
+    const bestFloor = Math.min(contrastRatio(best, colors.background), contrastRatio(best, colors.panel));
+    return floor > bestFloor ? candidate : best;
+  }, colors.text);
   return {
     ...colors,
-    text: ensureContrast(colors.text, colors.background, 4.5),
+    text,
     primary: ensureContrast(colors.primary, colors.background, 3),
   };
 }

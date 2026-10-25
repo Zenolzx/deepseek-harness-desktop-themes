@@ -7,14 +7,14 @@
  * side effects.
  */
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ChangeEvent, type DragEvent } from 'react';
 import type { DesktopThemesConfig, SettingsField, CustomThemeConfig, CustomThemeColors, ThemeId, VoiceStyle } from '../config/types.ts';
 import { createDefaultConfig, DEFAULT_APPEARANCE, DEFAULT_FONT, DEFAULT_PET, RECOMMENDED_OPACITY } from '../config/defaults.ts';
 import { exportConfigJson, parseImportedConfig } from '../config/transfer.ts';
 import { THEMES, resolvePalette, type DesktopTheme } from '../themes/index.ts';
 import type { ThemePalette } from '../themes/palette.ts';
 import { WALLPAPER_EXTENSIONS } from '../appearance/wallpaper.ts';
-import { effectiveContentStyle, supportsContentVariant } from '../appearance/content.ts';
+import { effectiveContentStyle } from '../appearance/content.ts';
 import {
   CODE_FONT_PRESETS,
   UI_FONT_PRESETS,
@@ -22,7 +22,9 @@ import {
   CODE_PREVIEW_TEXT,
   FONT_PREVIEW_TEXT,
   isFontAvailable,
+  type FontPreset,
 } from '../fonts/presets.ts';
+import { FontInstallError, fontsRevision, installFont, installedFontIds, removeInstalledFont, subscribeFonts } from '../fonts/runtime.ts';
 import { generateHarmony, HARMONY_KINDS, contrastIssues, fixContrast, type HarmonyKind } from '../custom-theme/colors.ts';
 import type { Store } from '../utils/store.ts';
 import {
@@ -42,10 +44,11 @@ import {
   type ThemeCardModel,
 } from './controls.tsx';
 import { VOICE_STYLE_IDS } from '../pet/speech.ts';
-import { GlassPreview, GlowPreview, LiveFontPreview, ParticlesPreview, TransparencyPreview } from './EffectPreview.tsx';
+import { ContentPreview, GlassPreview, GlowPreview, LiveFontPreview, ParticlesPreview, TransparencyPreview } from './EffectPreview.tsx';
 import { detectLang, makeTranslator, type I18nKey, type Lang, type Translate } from './i18n.ts';
 import { PLUGIN_BUILD_ID, PLUGIN_VERSION } from '../build-info.ts';
 import { applyBuiltinThemePreset, builtinWallpaperThumbnail } from '../client/theme-presets.ts';
+import { applyVisualModePreset } from '../appearance/visual-mode.ts';
 
 export type WallpaperPickResult = { ok: true } | { ok: false; reason: string };
 
@@ -231,6 +234,14 @@ function ThemeSection(props: { config: DesktopThemesConfig; t: Translate; update
           ))}
         </div>
       </Section>
+      <Section title={props.t('content.mode')}>
+        <div className="dth-mode-actions">
+          <Button onClick={() => props.update(applyVisualModePreset(props.config, 'focus'))} variant="primary">{props.t('content.mode.focus')}</Button>
+          <Button onClick={() => props.update(applyVisualModePreset(props.config, 'immersive'))}>{props.t('content.mode.immersive')}</Button>
+        </div>
+        <Notice tone="info">{props.t('content.mode.hint')}</Notice>
+        <ContentPreview config={props.config} />
+      </Section>
       {active !== undefined ? (
         <Section title={props.t('theme.palette')} actions={<Button onClick={duplicateBuiltin}>{props.t('custom.duplicate')}</Button>}>
           <div className="dth-swatch-grid">
@@ -252,43 +263,250 @@ function ThemeSection(props: { config: DesktopThemesConfig; t: Translate; update
   );
 }
 
+interface FontOption {
+  key: string;
+  label: string;
+  family: string;
+  aliases: readonly string[];
+  download?: FontPreset['download'];
+}
+
+interface FontJob {
+  id: string;
+  loaded: number;
+  total: number;
+  phase: 'download' | 'install';
+}
+
+function formatFontBytes(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function fontErrorMessage(error: unknown, t: Translate): string {
+  if (!(error instanceof FontInstallError)) return t('font.error.network');
+  switch (error.code) {
+    case 'quota':
+      return t('font.error.quota');
+    case 'http':
+      return t('font.error.http');
+    case 'invalid':
+      return t('font.error.invalid');
+    case 'storage':
+      return t('font.error.storage');
+    case 'unsupported':
+      return t('font.error.unsupported');
+    case 'aborted':
+      return '';
+    default:
+      return t('font.error.network');
+  }
+}
+
 function FontSection(props: { config: DesktopThemesConfig; t: Translate; update: (n: DesktopThemesConfig) => void }) {
   const font = props.config.font;
-  const setFont = (patch: Partial<typeof font>) => props.update(patchTop(props.config, 'font', { ...font, ...patch }));
+  const t = props.t;
+  const configRef = useRef(props.config);
+  configRef.current = props.config;
+  const setFont = (patch: Partial<typeof font>) =>
+    props.update(patchTop(configRef.current, 'font', { ...configRef.current.font, ...patch }));
 
-  const byInstalled = (a: { key: string; family: string }, b: { key: string; family: string }) => {
-    if (a.key === CUSTOM_PRESET_KEY) return 1;
-    if (b.key === CUSTOM_PRESET_KEY) return -1;
-    return Number(isFontAvailable(b.family)) - Number(isFontAvailable(a.family));
+  const revision = useSyncExternalStore(subscribeFonts, fontsRevision);
+  const downloaded = useMemo(() => installedFontIds(), [revision]);
+  const [job, setJob] = useState<FontJob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const isReady = (option: FontOption): boolean => {
+    if (option.key === CUSTOM_PRESET_KEY) {
+      return option.family.trim().length === 0 || isFontAvailable(option.family);
+    }
+    if (option.download !== undefined && downloaded.includes(option.download.id)) return true;
+    return isFontAvailable(option.family, option.aliases);
   };
-  const uiOptions = [
-    ...UI_FONT_PRESETS.map((p) => ({ key: p.key, label: p.key === 'system' ? props.t('font.preset.system') : p.label, family: p.family })),
-    { key: CUSTOM_PRESET_KEY, label: props.t('font.custom'), family: font.uiCustomFamily },
+
+  const statusFor = (option: FontOption): { text: string; tone: 'ok' | 'warn' | 'muted' } => {
+    if (option.download !== undefined && downloaded.includes(option.download.id)) {
+      return { text: t('font.status.plugin'), tone: 'ok' };
+    }
+    if (isReady(option)) return { text: t('common.installed'), tone: 'ok' };
+    if (option.download !== undefined) return { text: t('font.status.downloadable'), tone: 'warn' };
+    return { text: t('common.fallback'), tone: 'muted' };
+  };
+
+  const startDownload = async (option: FontOption, target: 'ui' | 'code') => {
+    const download = option.download;
+    if (download === undefined || job !== null) return;
+    setError(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setJob({ id: download.id, loaded: 0, total: download.sizeBytes, phase: 'download' });
+    try {
+      await installFont(
+        download,
+        (progress) => setJob({ id: download.id, loaded: progress.loaded, total: progress.total, phase: progress.phase }),
+        controller.signal,
+      );
+      setFont(target === 'ui' ? { uiPreset: option.key } : { codePreset: option.key });
+    } catch (caught) {
+      const message = fontErrorMessage(caught, t);
+      if (message.length > 0) setError(message);
+    } finally {
+      abortRef.current = null;
+      setJob(null);
+    }
+  };
+
+  const removeFont = async (id: string) => {
+    setError(null);
+    await removeInstalledFont(id);
+  };
+
+  const renderAction = (option: FontOption, target: 'ui' | 'code') => {
+    const download = option.download;
+    if (download === undefined) return undefined;
+    if (job !== null && job.id === download.id) {
+      const percent = job.total > 0 ? Math.min(100, Math.round((job.loaded / job.total) * 100)) : 0;
+      return (
+        <div className="dth-font-progress" role="status" aria-live="polite">
+          <span className="dth-font-progress-track" aria-hidden="true">
+            <span className="dth-font-progress-fill" style={{ width: `${percent}%` }} />
+          </span>
+          <span className="dth-font-progress-text">
+            {job.phase === 'install' ? t('font.installing') : `${t('font.downloading')} ${percent}%`}
+          </span>
+          <button type="button" className="dth-font-link" onClick={() => abortRef.current?.abort()}>
+            {t('font.cancel')}
+          </button>
+        </div>
+      );
+    }
+    if (downloaded.includes(download.id)) {
+      return (
+        <div className="dth-font-action-row">
+          <span className="dth-font-action-state">{t('font.status.plugin')}</span>
+          <button type="button" className="dth-font-link" onClick={() => void removeFont(download.id)}>
+            {t('font.remove')}
+          </button>
+        </div>
+      );
+    }
+    return (
+      <button
+        type="button"
+        className="dth-font-download"
+        disabled={job !== null}
+        onClick={() => void startDownload(option, target)}
+        title={download.source}
+      >
+        <span aria-hidden="true">↓</span>
+        {t('font.download')} · {formatFontBytes(download.sizeBytes)}
+      </button>
+    );
+  };
+
+  const byInstalled = (a: FontOption, b: FontOption) => {
+    const rank = (option: FontOption) => (option.key === CUSTOM_PRESET_KEY ? -1 : Number(isReady(option)));
+    return rank(b) - rank(a);
+  };
+
+  const uiOptions: FontOption[] = [
+    ...UI_FONT_PRESETS.map((preset) => ({
+      key: preset.key,
+      label: preset.key === 'system' ? t('font.preset.system') : preset.label,
+      family: preset.family,
+      aliases: preset.aliases,
+      download: preset.download,
+    })),
+    { key: CUSTOM_PRESET_KEY, label: t('font.custom'), family: font.uiCustomFamily, aliases: [] },
   ].sort(byInstalled);
-  const codeOptions = [
-    ...CODE_FONT_PRESETS.map((p) => ({ key: p.key, label: p.key === 'system-mono' ? props.t('font.preset.systemMono') : p.label, family: p.family })),
-    { key: CUSTOM_PRESET_KEY, label: props.t('font.custom'), family: font.codeCustomFamily },
+  const codeOptions: FontOption[] = [
+    ...CODE_FONT_PRESETS.map((preset) => ({
+      key: preset.key,
+      label: preset.key === 'system-mono' ? t('font.preset.systemMono') : preset.label,
+      family: preset.family,
+      aliases: preset.aliases,
+      download: preset.download,
+    })),
+    { key: CUSTOM_PRESET_KEY, label: t('font.custom'), family: font.codeCustomFamily, aliases: [] },
   ].sort(byInstalled);
+
+  const installedSummary = useMemo(() => {
+    const ids = new Set<string>();
+    let bytes = 0;
+    for (const preset of [...UI_FONT_PRESETS, ...CODE_FONT_PRESETS]) {
+      const download = preset.download;
+      if (download === undefined || ids.has(download.id) || !downloaded.includes(download.id)) continue;
+      ids.add(download.id);
+      bytes += download.sizeBytes;
+    }
+    return { count: ids.size, bytes };
+  }, [downloaded]);
+
+  const selectedUi = uiOptions.find((option) => option.key === font.uiPreset);
+  const selectedCode = codeOptions.find((option) => option.key === font.codePreset);
+  const missing = [selectedUi, selectedCode].some(
+    (option) =>
+      option !== undefined &&
+      option.key !== 'system' &&
+      option.key !== 'system-mono' &&
+      !isReady(option),
+  );
+
+  const cardProps = (option: FontOption) => {
+    const status = statusFor(option);
+    return {
+      label: option.label,
+      family: option.family,
+      installed: isReady(option),
+      selected: option.key === font.uiPreset,
+      onSelect: () => setFont({ uiPreset: option.key }),
+      installedText: t('common.installed'),
+      fallbackText: t('common.fallback'),
+      preview: FONT_PREVIEW_TEXT,
+      codePreview: CODE_PREVIEW_TEXT,
+      statusText: status.text,
+      statusTone: status.tone,
+      action: renderAction(option, 'ui'),
+    };
+  };
+
+  const codeCardProps = (option: FontOption) => {
+    const status = statusFor(option);
+    return {
+      label: option.label,
+      family: option.family,
+      installed: isReady(option),
+      selected: option.key === font.codePreset,
+      onSelect: () => setFont({ codePreset: option.key }),
+      installedText: t('common.installed'),
+      fallbackText: t('common.fallback'),
+      preview: FONT_PREVIEW_TEXT,
+      codePreview: CODE_PREVIEW_TEXT,
+      statusText: status.text,
+      statusTone: status.tone,
+      action: renderAction(option, 'code'),
+    };
+  };
 
   return (
     <Section title={props.t('font.title')} actions={<Button onClick={() => setFont({ ...DEFAULT_FONT })}>{props.t('font.restore')}</Button>}>
       <LiveFontPreview config={props.config} />
+      <Notice tone="info">
+        {t('font.library.hint')}
+        {installedSummary.count > 0 ? ` ${t('font.library.installed')} ${installedSummary.count} · ${formatFontBytes(installedSummary.bytes)}` : ''}
+      </Notice>
+      {error !== null ? <Notice tone="error">{error}</Notice> : null}
+      {missing ? <Notice tone="warn">{t('font.selectedMissing')}</Notice> : null}
       <div className="dth-field">
-        <div className="dth-field-label"><label>{props.t('font.uiFamily')}</label></div>
+        <div className="dth-field-label">
+          <label>{props.t('font.uiFamily')}</label>
+          <span className="dth-field-hint">{t('font.aliasHint')}</span>
+        </div>
         <div className="dth-font-grid">
-          {uiOptions.map((o) => (
-            <FontCard
-              key={o.key}
-              label={o.label}
-              family={o.family}
-              installed={isFontAvailable(o.family)}
-              selected={font.uiPreset === o.key}
-              onSelect={() => setFont({ uiPreset: o.key })}
-              installedText={props.t('common.installed')}
-              fallbackText={props.t('common.fallback')}
-              preview={FONT_PREVIEW_TEXT}
-              codePreview={CODE_PREVIEW_TEXT}
-            />
+          {uiOptions.map((option) => (
+            <FontCard key={option.key} {...cardProps(option)} />
           ))}
         </div>
       </div>
@@ -302,21 +520,12 @@ function FontSection(props: { config: DesktopThemesConfig; t: Translate; update:
         />
       ) : null}
       <div className="dth-field">
-        <div className="dth-field-label"><label>{props.t('font.codeFamily')}</label></div>
+        <div className="dth-field-label">
+          <label>{props.t('font.codeFamily')}</label>
+        </div>
         <div className="dth-font-grid">
-          {codeOptions.map((o) => (
-            <FontCard
-              key={o.key}
-              label={o.label}
-              family={o.family}
-              installed={isFontAvailable(o.family)}
-              selected={font.codePreset === o.key}
-              onSelect={() => setFont({ codePreset: o.key })}
-              installedText={props.t('common.installed')}
-              fallbackText={props.t('common.fallback')}
-              preview={FONT_PREVIEW_TEXT}
-              codePreview={CODE_PREVIEW_TEXT}
-            />
+          {codeOptions.map((option) => (
+            <FontCard key={option.key} {...codeCardProps(option)} />
           ))}
         </div>
       </div>
@@ -565,20 +774,10 @@ function GlassSection(props: { config: DesktopThemesConfig; t: Translate; update
           { value: 'refined', label: props.t('content.style.refined') },
         ]}
         onChange={(v) => setAppearance({ contentStyle: v })}
-        disabled={!supportsContentVariant(props.config.theme)}
       />
-      <Segmented<'0.5' | '1'>
-        id="dth-content-tint"
-        label={props.t('content.tint')}
-        value={appearance.diffTint <= 0.5 ? '0.5' : '1'}
-        options={[
-          { value: '0.5', label: props.t('content.tint.soft') },
-          { value: '1', label: props.t('content.tint.standard') },
-        ]}
-        onChange={(v) => setAppearance({ diffTint: Number(v) })}
-      />
+      <Slider id="dth-content-tint" label={props.t('content.tint')} min={0.25} max={2} step={0.25} value={appearance.diffTint} onChange={(v) => setAppearance({ diffTint: v })} format={(v) => `${Math.round(v * 100)}%`} />
       <Notice tone="info">{props.t('content.hint')}</Notice>
-      {supportsContentVariant(props.config.theme) ? null : <Notice tone="info">{props.t('content.variantOnly')}</Notice>}
+      <ContentPreview config={props.config} />
 
       <Toggle id="dth-glass-enabled" label={props.t('glass.enabled')} checked={glass.enabled} onChange={(v) => setGlass({ enabled: v })} />
       <Segmented

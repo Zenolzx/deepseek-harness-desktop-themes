@@ -1,5 +1,6 @@
 import type { DesktopThemesConfig, ThemeId } from '../config/types.ts';
 import { THEME_VISUAL_DEFAULTS } from '../themes/visual-defaults.ts';
+import { applyVisualModePreset } from '../appearance/visual-mode.ts';
 import auroraDream from '../assets/wallpapers/aurora-dream.jpg';
 import mintBreeze from '../assets/wallpapers/mint-breeze.jpg';
 import obsidianGold from '../assets/wallpapers/obsidian-gold.jpg';
@@ -55,10 +56,10 @@ export function hydrateBuiltinWallpaper(config: DesktopThemesConfig): DesktopThe
   return { ...config, wallpaper: { ...config.wallpaper, path } };
 }
 
-/** Apply the wallpaper/effect/glass recipe designed for a built-in theme. */
+/** Select a built-in theme with its wallpaper and a reading-first recipe. */
 export function applyBuiltinThemePreset(config: DesktopThemesConfig, id: ThemeId): DesktopThemesConfig {
   const preset = THEME_VISUAL_DEFAULTS[id];
-  return {
+  const themed: DesktopThemesConfig = {
     ...config,
     theme: id,
     appearance: { ...config.appearance, ...preset.appearance },
@@ -78,4 +79,5 @@ export function applyBuiltinThemePreset(config: DesktopThemesConfig, id: ThemeId
     glass: { ...config.glass, ...preset.glass },
     effects: { ...config.effects, ...preset.effects, autoThemeColors: true, particleColors: [], glowColors: [] },
   };
+  return applyVisualModePreset(themed, 'focus');
 }

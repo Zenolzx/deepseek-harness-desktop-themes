@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.8.0 — 2026-10-25
+
+### Added
+
+- **字体一键下载**：7 款 OFL 字体可直接安装到插件内（IndexedDB `dsh-desktop-themes-fonts` + 浏览器 `FontFace`），带下载进度、取消、注册状态、移除、占用统计与失败分类；下载完成后自动应用，重启与离线仍可用，不修改系统字体目录。
+  - 界面：LXGW WenKai（霞鹜文楷，7.2 MB）、Maple Mono（131 KB 可变字重）。
+  - 代码：Maple Mono、JetBrains Mono、Cascadia Code、Fira Code、Source Code Pro、IBM Plex Mono。
+- 字体卡片新增「系统已安装 / 插件内 / 可下载 / 不可用」四态徽标与下载/移除操作。
+- 新增 `src/fonts/runtime.ts`、`src/storage/font-store.ts`、`ROADMAP.md`。
+
+### Fixed
+
+- **字体不生效**：产品 composer 写死 `font-family: Inter, var(--dsw-font-family)`，英文永远使用 Inter；插件现在显式覆盖 `textarea/input/select` 的字体族。
+- **本地化家族名**：中文 Windows 把霞鹜文楷注册为 `霞鹜文楷`，插件只写 `LXGW WenKai` 时会解析失败；每个预设现在带本地化/英文/Nerd Font 别名，并按「主家族 → 别名 → 回退」生成字体栈。
+- 安装检测改为逐个别名进行 canvas 探测并缓存，下载/删除后失效；修复 `document.fonts.check()` 误判的旧说明。
+- 字体栈去重不再区分大小写，避免同一家族重复出现。
+
+### Changed
+
+- 字体预设从 8+8 扩展为 9+8（新增 KaiTi），预设卡片按可用性排序。
+- 单元测试从 103 增至 114（字体别名、去重、下载目录、CSS 覆盖）。
+- README / `docs/fonts.md` 更新一键下载、许可、已知限制与故障排查。
+
+## Unreleased
+
+### Changed
+
+- 新安装默认采用更清晰的工作台配方：内容面板和输入区更实，壁纸、粒子与辉光更轻；已有用户保存的各项值不被批量覆盖。
+- 六套主题及自定义主题都可切换「经典 / 焕新」内容层，并提供完整的 diff 高亮强度滑杆。
+- 主题设置增加「专注工作台 / 沉浸主题」一键配方及代码、增删 diff 内容预览；切换不会替换用户上传的壁纸或桌宠设置。
+- 浅色主题的插件玻璃层改用当前主题的面板色和文字色；审查和代码阅读时收敛光效，审查时隐藏桌宠以免遮挡操作。
+- 自定义主题对比度检查覆盖正文与面板，以及主色与背景。
+- 利用宿主 Shiki 的 `--shiki-*` CSS 变量给六套及自定义主题提供协调的语法色，并按代码块底色校正文字对比度。
+
 ## 1.7.2 — 2026-10-19
 
 ### Fixed

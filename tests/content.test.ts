@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildContentLayer, effectiveContentStyle, supportsContentVariant } from '../src/appearance/content.ts';
+import { buildContentLayer, effectiveContentStyle } from '../src/appearance/content.ts';
 import { createDefaultConfig } from '../src/config/defaults.ts';
 import { coerceConfig } from '../src/config/validation.ts';
 import { mintBreeze } from '../src/themes/mint-breeze.ts';
 import { quantumBlue } from '../src/themes/quantum-blue.ts';
+import { THEMES } from '../src/themes/index.ts';
+import { contrastRatio } from '../src/utils/color.ts';
 
 const DIFF_KEYS = [
   '--dsw-alias-file-diff-added-bg',
@@ -18,6 +20,7 @@ const DIFF_KEYS = [
   '--dsw-alias-code-diff-deleted',
   '--dsw-alias-bg-document-preview',
   '--dsw-alias-bg-document-selection',
+  '--shiki-token-keyword',
 ] as const;
 
 /** Read the alpha out of `rgba(r, g, b, a)`. */
@@ -71,14 +74,23 @@ test('the document preview stays opaque so decorations cannot bleed through', ()
   assert.ok(preview.startsWith('#'), `expected an opaque hex color, got ${preview}`);
 });
 
-test('only Mint Breeze exposes the classic/refined switch', () => {
-  assert.equal(supportsContentVariant('mint-breeze'), true);
-  assert.equal(supportsContentVariant('quantum-blue'), false);
+test('all six palettes keep reading ink and diff markers legible on paper', () => {
+  for (const theme of THEMES) {
+    const layer = buildContentLayer(theme.palette, { style: 'refined', tint: 0.75 });
+    const paper = layer['--dth-content-surface'].light;
+    assert.ok(contrastRatio(theme.palette.textPrimary, paper) >= 4.5, `${theme.id}: primary ink`);
+    assert.ok(contrastRatio(theme.palette.textSecondary, paper) >= 4.5, `${theme.id}: secondary ink`);
+    for (const key of ['--dsw-alias-file-diff-added-marker', '--dsw-alias-file-diff-deleted-marker']) {
+      assert.ok(contrastRatio(layer[key].light, paper) >= 3, `${theme.id}: ${key}`);
+    }
+  }
+});
 
+test('every theme exposes the classic/refined switch', () => {
   const config = createDefaultConfig();
   config.theme = 'quantum-blue';
   config.appearance.contentStyle = 'classic';
-  assert.equal(effectiveContentStyle(config), 'refined');
+  assert.equal(effectiveContentStyle(config), 'classic');
 
   config.theme = 'mint-breeze';
   assert.equal(effectiveContentStyle(config), 'classic');
@@ -95,5 +107,5 @@ test('appearance coercion keeps and clamps the new fields', () => {
 
   const defaults = createDefaultConfig();
   assert.equal(defaults.appearance.contentStyle, 'refined');
-  assert.equal(defaults.appearance.diffTint, 1);
+  assert.equal(defaults.appearance.diffTint, 0.75);
 });

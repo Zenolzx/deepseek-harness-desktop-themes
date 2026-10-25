@@ -21,7 +21,7 @@ test('buildTransparencyOverrides emits rgba() values with the right alpha', () =
   const overrides = buildTransparencyOverrides(DEFAULT_APPEARANCE, 'quantum-blue', false);
   const base = overrides['--dsw-alias-bg-base'];
   assert.ok(base, 'bg-base override present');
-  assert.match(base.dark, /rgba\(3, 8, 23, 0\.9\)/);
+  assert.match(base.dark, /rgba\(3, 8, 23, 0\.94\)/);
   assert.equal(base.light, base.dark);
 });
 

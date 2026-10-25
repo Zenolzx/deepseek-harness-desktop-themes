@@ -37,6 +37,7 @@ import staticCss from './styles.css';
 import petCss from '../pet/pet.css';
 import { hydrateBuiltinWallpaper } from './theme-presets.ts';
 import { loadConfigSnapshot, saveConfigSnapshot } from '../storage/config-store.ts';
+import { disposeFontFaces, hydrateInstalledFonts } from '../fonts/runtime.ts';
 
 const PLUGIN_ID = 'dsh-desktop-themes';
 const OVERRIDE_SOURCE = PLUGIN_ID;
@@ -160,6 +161,12 @@ export function apply(ctx: ClientContext): void {
     hydrateBuiltinWallpaper(explicitBootstrap ?? createDefaultConfig()),
   );
 
+  // ---- Downloadable fonts -------------------------------------------------
+  // Register previously installed webfonts before the first paint they can
+  // affect. The family names match the preset stacks, so a registered face is
+  // picked up by the same CSS without re-injecting anything.
+  void hydrateInstalledFonts();
+
   // ---- Theme registration (built-in) -------------------------------------
   if (theme !== undefined) {
     for (const definition of THEMES) {
@@ -282,7 +289,7 @@ export function apply(ctx: ClientContext): void {
       const css = [
         buildFontCss(config.font),
         buildWallpaperCss(config.wallpaper, palette?.accent),
-        buildGlassCss(glassFor(config), supportsBackdropFilter()),
+        buildGlassCss(glassFor(config), supportsBackdropFilter(), palette),
         buildLayoutCss(config),
       ].join('\n');
       dynamicStyles.set(css);
@@ -752,6 +759,7 @@ export function apply(ctx: ClientContext): void {
       if (typeof cancelAnimationFrame === 'function' && reconcileRaf !== 0) cancelAnimationFrame(reconcileRaf);
       for (const timer of reconcileTimers) clearTimeout(timer);
       effects.dispose();
+      disposeFontFaces();
       for (const url of wallpaperUrls.values()) URL.revokeObjectURL(url);
       wallpaperUrls.clear();
       for (const reg of customRegistrations.values()) reg.dispose();

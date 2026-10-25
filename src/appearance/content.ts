@@ -18,22 +18,11 @@
 
 import type { ContentStyle, DesktopThemesConfig } from '../config/types.ts';
 import type { ThemePalette } from '../themes/palette.ts';
+import { buildSyntaxTokens } from '../themes/palette.ts';
 import { mixHex, rgba } from '../utils/color.ts';
 
-/** Themes that expose the classic/refined switch in the settings UI. */
-export const CONTENT_VARIANT_THEMES: readonly string[] = ['mint-breeze'];
-
-export function supportsContentVariant(themeId: string): boolean {
-  return CONTENT_VARIANT_THEMES.includes(themeId);
-}
-
-/**
- * Resolve the content style actually in force. Themes without a variant keep
- * the refined layer, so the fix reaches all six palettes while only Mint
- * Breeze grows a user-facing toggle.
- */
+/** Resolve the content style actually in force. */
 export function effectiveContentStyle(config: DesktopThemesConfig): ContentStyle {
-  if (!supportsContentVariant(config.theme)) return 'refined';
   return config.appearance.contentStyle;
 }
 
@@ -89,6 +78,7 @@ export function buildContentLayer(
     '--dsw-alias-bg-document-preview': preview,
     '--dsw-alias-bg-document-selection': rgba(palette.accent, scale(a.selection)),
     '--dth-content-surface': contentSurface,
+    ...buildSyntaxTokens(palette),
   };
 
   const out: Record<string, { light: string; dark: string }> = {};

@@ -1,5 +1,5 @@
 /**
- * Theme palette → `--dsw-alias-*` token mapping.
+ * Theme palette → host alias and Shiki syntax-token mapping.
  *
  * DeepSeek Harness themes are expressed as overrides on the semantic alias
  * token layer (see `design-platform.css`). Each theme supplies a compact
@@ -14,7 +14,7 @@
  */
 
 import type { CustomThemeColors } from '../config/types.ts';
-import { adjustLightness, contrastRatio, mixHex, readableOn, rgba } from '../utils/color.ts';
+import { adjustLightness, contrastRatio, ensureContrast, mixHex, readableOn, rgba } from '../utils/color.ts';
 
 export interface ThemePalette {
   /** Built-in theme id. */
@@ -88,6 +88,29 @@ function invertedLabelInk(ink: string): string {
   const light = '#FFFFFF';
   const dark = '#111113';
   return contrastRatio(ink, light) >= contrastRatio(ink, dark) ? light : dark;
+}
+
+/** Shiki's supported CSS-variable theme, tuned against each code surface. */
+export function buildSyntaxTokens(p: ThemePalette): Record<string, string> {
+  const dark = p.colorScheme === 'dark';
+  const code = p.codeBlock;
+  const readable = (color: string) => {
+    const adjusted = ensureContrast(color, code, 4.5);
+    return contrastRatio(adjusted, code) >= 4.5 ? adjusted : readableOn(code, '#111113', '#ffffff');
+  };
+  return {
+    '--shiki-foreground': readable(p.textPrimary),
+    '--shiki-background': code,
+    '--shiki-token-constant': readable(p.accent),
+    '--shiki-token-string': readable(dark ? '#86d7a3' : '#24764e'),
+    '--shiki-token-comment': readable(dark ? '#a7a6a2' : '#687075'),
+    '--shiki-token-keyword': readable(dark ? '#e8a0bd' : '#a23260'),
+    '--shiki-token-parameter': readable(dark ? '#e6bf7a' : '#995214'),
+    '--shiki-token-function': readable(dark ? '#c5abf2' : '#6741a6'),
+    '--shiki-token-string-expression': readable(dark ? '#a0d8c0' : '#2b7059'),
+    '--shiki-token-punctuation': readable(p.textSecondary),
+    '--shiki-token-link': readable(p.accent),
+  };
 }
 
 /**

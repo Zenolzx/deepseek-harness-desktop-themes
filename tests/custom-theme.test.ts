@@ -33,6 +33,14 @@ test('fixContrast raises text contrast to a readable level', () => {
   assert.ok(contrastRatio(fixed.text, fixed.background) >= 4.5);
 });
 
+test('custom-theme warning and repair include the raised panel', () => {
+  const colors = { primary: '#3D7EFF', accent: '#22D3EE', background: '#eeeeee', panel: '#ffffff', text: '#aaaaaa', particle: '#000000', glow: '#000000' };
+  assert.ok(contrastIssues(colors).some((issue) => issue.startsWith('text/panel')));
+  const fixed = fixContrast(colors);
+  assert.ok(contrastRatio(fixed.text, fixed.background) >= 4.5);
+  assert.ok(contrastRatio(fixed.text, fixed.panel) >= 4.5);
+});
+
 test('foregroundOnAccent picks the more readable of dark/light', () => {
   const fg = foregroundOnAccent('#3D7EFF');
   const dark = contrastRatio('#0b0e14', '#3D7EFF');

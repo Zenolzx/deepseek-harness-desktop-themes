@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { THEMES, getTheme, isBuiltinTheme, bgBaseForTheme, resolvePalette, buildCustomThemeDefinition } from '../src/themes/index.ts';
-import { buildThemeTokens } from '../src/themes/palette.ts';
+import { buildSyntaxTokens, buildThemeTokens } from '../src/themes/palette.ts';
+import { contrastRatio } from '../src/utils/color.ts';
 import { THEME_VISUAL_DEFAULTS } from '../src/themes/visual-defaults.ts';
 
 test('the registry exposes exactly six themes with distinct ids', () => {
@@ -30,6 +31,17 @@ test('every theme has a full token set and a valid color scheme', () => {
     ]) {
       assert.ok(token in tokens, `${theme.id} is missing ${token}`);
       assert.match(tokens[token], /^(#|rgb|rgba)/);
+    }
+  }
+});
+
+test('syntax colors stay readable on every built-in code surface', () => {
+  const keys = ['constant', 'string', 'comment', 'keyword', 'parameter', 'function', 'string-expression', 'punctuation', 'link'];
+  for (const theme of THEMES) {
+    const tokens = buildSyntaxTokens(theme.palette);
+    for (const key of keys) {
+      const color = tokens[`--shiki-token-${key}`];
+      assert.ok(contrastRatio(color, theme.palette.codeBlock) >= 4.5, `${theme.id}: ${key}`);
     }
   }
 });
@@ -79,4 +91,11 @@ test('buildCustomThemeDefinition builds a register-able definition', () => {
   assert.equal(def.id, 'custom-1');
   assert.equal(def.colorScheme, 'light');
   assert.ok('--dsw-alias-bg-base' in def.tokens);
+});
+
+test('custom themes retain legible syntax colors at an extreme accent', () => {
+  const palette = resolvePalette('custom-1', [{ id: 'custom-1', name: 'X', base: 'quantum-blue', colors: { primary: '#020304', accent: '#020304', background: '#050505', panel: '#111111', text: '#ffffff', particle: '#020304', glow: '#020304' } }]);
+  assert.ok(palette);
+  const tokens = buildSyntaxTokens(palette);
+  assert.ok(contrastRatio(tokens['--shiki-token-constant'], palette.codeBlock) >= 4.5);
 });

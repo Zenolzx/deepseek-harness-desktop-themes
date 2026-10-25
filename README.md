@@ -24,12 +24,13 @@
 10. [测试与构建验证](#测试与构建验证)
 11. [已知限制](#已知限制)
 12. [项目结构](#项目结构)
+13. [分阶段路线图](#分阶段路线图)
 
 ---
 
 ## 效果对比
 
-以下截图来自同一台机器、同一 DSH 新会话页面和相同侧边栏状态；右图为插件的默认组合（黑金星穹、黑曜石月殿壁纸、金色星尘与月灵狐）。点击图片可查看原图。
+以下截图来自同一台机器、同一 DSH 新会话页面和相同侧边栏状态；右图展示黑金星穹、黑曜石月殿壁纸、金色星尘与月灵狐。当前开发版默认已进一步收敛壁纸与动效强度，截图尚未重拍。点击图片可查看原图。
 
 | 无插件 | 启用插件 |
 |---|---|
@@ -42,13 +43,14 @@
 | 分组 | 能力 |
 |---|---|
 | 主题风格 | 六套差异明显的主题：量子蓝、极光幻境、薄荷清风、樱雾、日落流光、黑金星穹；可视化主题卡片（背景/面板/文字/强调色/粒子缩略）+ 风格标签 |
-| 字体排版 | 界面/代码字体独立下拉，预设 8+8 组，每个选项用对应字体渲染预览并显示“已安装/回退”；字号、行高、字重、连字、平滑 |
+| 字体排版 | 界面/代码字体独立下拉，预设 9+8 组，每个选项用对应字体渲染预览并显示“系统已安装 / 插件内 / 可下载 / 回退”；**7 款主流字体一键下载到插件内**（IndexedDB + FontFace，离线可用、不改系统）；中英文家族名自动别名匹配；字号、行高、字重、连字、平滑 |
 | 壁纸 | 六套主题各有专属内置壁纸；本地选择 + 拖放 + 最近使用 + 预览；填充/适应/居中/拉伸/平铺；缩放/透明度/模糊/亮度/饱和度/暗色遮罩/主题色混合；自定义壁纸 **IndexedDB 持久化** |
 | 桌面小人 | 月灵狐单角色；无底图分层轮廓，随机眨眼、颈部轴心摇头、尾根轴心摆尾、惯性回弹与持续呼吸；发声提供正常/温柔/欢快/俏皮/沉稳/机器人 6 种语调；可拖拽定位、单击打开快捷菜单 |
 | 光影效果 | 光影强度（关闭/柔和/标准/明亮）、光标跟随柔光、背景视差、柔光呼吸 |
 | 粒子效果 | 十种预设（科技数据流、星空、极光、萤火、气泡、樱花、金尘、呼吸…）；密度/数量/大小/速度/透明度/连线/鼠标互动/自动配色 |
 | 透明与毛玻璃 | 窗口/侧边栏/面板/输入区透明度（0.55 下限）；模糊强度（关闭/轻度/标准/强烈）+ 降级 |
-| 内容区样式 | Diff 行高亮改为「行号标记条 + 极淡行底色」，新增/删除按主题成功色与危险色派生；文档预览与代码区改为不透明纸张色卡片，粒子光斑不再穿过阅读区；高亮强度两档（柔/标准）；薄荷清风支持「经典/焕新」实时切换 |
+| 内容区样式 | Diff 行高亮采用「行号标记条 + 极淡行底色」，新增/删除按主题成功色与危险色派生；六套主题均支持「经典/焕新」切换和完整强度滑杆。代码块使用按主题校正对比度的 Shiki 语法色，设置页可同时预览代码与 diff。|
+| 阅读与氛围 | 新安装默认使用更清晰的工作台配方；「专注工作台 / 沉浸主题」一键切换阅读面透明度、壁纸与动效强度，保留用户上传的壁纸和桌宠设置。审查视图自动收敛光效并隐藏桌宠。|
 | 自定义配色 | 七色自定义主题；一键生成 7 种协调配色；对比度检测与一键修正；命名/保存/复制/删除；内置主题不可破坏、可复制后编辑 |
 | 动画与性能 | 动画速度（静止/舒缓/标准/活跃）；性能等级（省电/均衡/高质量） |
 | 导入导出重置 | JSON 导出/导入（schema 校验 + 版本迁移）；分组/当前主题/全部默认值重置 |
@@ -66,7 +68,7 @@ cd dsh-desktop-themes
 npm install
 npm run build        # 生成 lib/index.js 与 lib/client.js
 npm run typecheck    # 严格类型检查（无 emit）
-npm test             # 103 个单元测试
+npm test             # 单元测试
 npm run bench        # 可复现的性能微基准
 ```
 
@@ -78,7 +80,7 @@ npm run bench        # 可复现的性能微基准
 生成可安装包：
 
 ```bash
-npm pack            # 产出 dsh-desktop-themes-1.7.2.tgz
+npm pack            # 产出 dsh-desktop-themes-1.8.0.tgz
 ```
 
 ---
@@ -118,7 +120,7 @@ npm pack            # 产出 dsh-desktop-themes-1.7.2.tgz
 
 ```bash
 # 安装构建好的 tgz（推荐，桌面端插件管理器也可选择此文件）
-dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.7.2.tgz
+dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.8.0.tgz
 
 # 或从 npm 安装（若已发布）
 dsh plugin --profile web add dsh-desktop-themes
@@ -184,23 +186,47 @@ dsh web
 
 ## 字体安装与回退
 
-推荐安装：
+### 一键下载（推荐）
 
-- **[LXGW WenKai（霞鹜文楷）](https://github.com/lxgw/LxgwWenKai/releases/latest)**：推荐作为界面与中文正文字体。
-- **[Maple Mono](https://github.com/subframe7536/maple-font/releases/latest)**：推荐作为代码字体，兼顾清晰度与连字效果。
+设置 → 桌面外观 → 字体排版 中，7 款字体带有「下载到插件」按钮：
 
-界面字体预设：系统默认、霞鹜文楷 LXGW WenKai、Maple UI、MiSans、HarmonyOS Sans SC、Noto Sans SC、Microsoft YaHei UI、PingFang SC。
+| 字体 | 用途 | 体积 | 许可 |
+|---|---|---|---|
+| LXGW WenKai（霞鹜文楷） | 界面 / 中文正文 | 7.2 MB | OFL-1.1 |
+| Maple Mono | 界面 / 代码 | 131 KB | OFL-1.1 |
+| JetBrains Mono | 代码 | 21 KB | OFL-1.1 |
+| Cascadia Code | 代码 | 29 KB | OFL-1.1 |
+| Fira Code | 代码 | 23 KB | OFL-1.1 |
+| Source Code Pro | 代码 | 12 KB | OFL-1.1 |
+| IBM Plex Mono | 代码 | 15 KB | OFL-1.1 |
+
+字体字节存进插件自己的 IndexedDB（`dsh-desktop-themes-fonts`），通过浏览器 `FontFace` 注册，**不修改系统字体目录**；下载完成后自动应用，重启与离线仍可用。下载有进度、可取消、可移除；失败会给出网络 / HTTP / 配额 / 校验 / 浏览器不支持的明确原因。
+
+> 下载源为官方项目或其 Fontsource 镜像（jsDelivr，CORS 已开启）；插件本身不打包字体文件。
+
+### 系统安装（可选）
+
+如果希望其他应用也使用同一字体，可按官方 Release 手动安装：
+
+- **[LXGW WenKai（霞鹜文楷）](https://github.com/lxgw/LxgwWenKai/releases/latest)**
+- **[Maple Mono](https://github.com/subframe7536/maple-font/releases/latest)**
+
+界面字体预设：系统默认、霞鹜文楷 LXGW WenKai、Maple UI、MiSans、HarmonyOS Sans SC、Noto Sans SC、Microsoft YaHei UI、PingFang SC、KaiTi。
 
 代码字体预设：JetBrains Mono、Maple Mono、Cascadia Code、Fira Code、Source Code Pro、IBM Plex Mono、Consolas、系统等宽字体。
 
-插件**不打包、不重新分发字体文件**——它只生成字体栈。设置页用 `document.fonts.check()` 检测并显示“已安装 / 不可用，将使用回退字体”；未安装字体按回退栈自动降级，绝不空白/崩溃。
+### 为什么以前「字体不生效」
+
+1. 产品输入框写死了 `font-family: Inter, var(--dsw-font-family)`，英文始终走 Inter；插件现在直接覆盖输入框/表单控件的字体族。
+2. 字体家族名有本地化差异：中文 Windows 把霞鹜文楷注册为 `霞鹜文楷`，英文环境是 `LXGW WenKai`；插件现在把两种写法（以及 Nerd Font 变体）都放进字体栈，并逐个探测。
+3. 只有「检测系统安装」没有「安装到插件内」；现在默认提供一键下载，未安装时仍按回退栈降级，绝不空白/崩溃。
 
 - 代码回退栈：`"JetBrains Mono", "Maple Mono", "Cascadia Code", "SFMono-Regular", Consolas, Menlo, "PingFang SC", "Microsoft YaHei", monospace`
 - 界面回退栈：`-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif`
 
 字体预览文字：`DeepSeek Harness · 你好，世界` + `const answer = await model.generate();`（中英文与代码混排）。
 
-下载地址见 [`docs/fonts.md`](docs/fonts.md)。
+下载地址与许可说明见 [`docs/fonts.md`](docs/fonts.md)。
 
 ---
 
@@ -225,7 +251,7 @@ npm run typecheck && npm test && npm run build
 结果（当前环境 Node 24 / Windows）：
 
 - `tsc --noEmit`：0 错误
-- 单元测试：**103 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体回退、壁纸校验、性能档位、导入导出与样式清理）
+- 单元测试：**114 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体别名/回退/下载目录、壁纸校验、性能档位、导入导出与样式清理）
 - 构建：`lib/index.js` + `lib/client.js` 成功产出
 
 ---
@@ -261,13 +287,31 @@ dsh-desktop-themes/
 │   ├── pet/                   # 桌面小人（SVG 角色 + 快捷菜单 + 拖拽）
 │   ├── config/                # 类型 / 默认值 / schema / 校验迁移 / 导入导出
 │   ├── themes/                # 六套主题 + token 构建器 + 自定义主题派生
-│   ├── fonts/presets.ts       # 字体预设 + 回退栈 + 安装检测
+│   ├── fonts/
+│   │   ├── presets.ts         # 字体预设 + 别名 + 回退栈 + 下载目录
+│   │   ├── runtime.ts         # 下载 / FontFace 注册 / 已安装状态
+│   │   └── ...                # 安装检测、预览
 │   ├── appearance/            # 字体 / 透明度 / 壁纸 / 毛玻璃 CSS
 │   ├── effects/               # Canvas-2D 粒子/光影引擎 + 预设元数据
 │   ├── custom-theme/colors.ts # 协调配色生成 + 对比度检测/修正
-│   ├── storage/wallpaper-store.ts # IndexedDB 壁纸 Blob 存储
+│   ├── storage/
+│   │   ├── wallpaper-store.ts # IndexedDB 壁纸 Blob 存储
+│   │   └── font-store.ts      # IndexedDB 字体 Blob 存储（独立数据库）
 │   ├── settings/              # 设置页 / 控件 / 预览 / 双语
 │   └── utils/                 # 颜色 / store / 样式控制器
-├── tests/                     # 103 个单元测试
+├── tests/                     # 114 个单元测试
+├── ROADMAP.md                 # 2.0 分阶段路线图
 └── docs/                      # install / configuration / fonts / platform / performance
 ```
+
+---
+
+## 分阶段路线图
+
+下一阶段的完整规划见 [`ROADMAP.md`](ROADMAP.md)：1.9 信任与可读性（对比度门禁、切换撤销、首屏收敛）→ 2.0 场景系统与分享 → 2.1 外观工作室与主题导入 → 2.2 氛围引擎 → 3.0 桌面伙伴与社区。
+
+当前建议先做三件 P0：
+
+1. 对比度门禁 + 浅色主题修正；
+2. 主题切换拆成「只换配色 / 整套氛围」并支持撤销；
+3. 首屏壁纸安全区 + 输入框局部 scrim。

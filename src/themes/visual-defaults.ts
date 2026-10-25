@@ -7,7 +7,7 @@ export interface ThemeVisualDefaults {
   effects: Partial<EffectsConfig>;
 }
 
-/** Curated defaults applied when a built-in theme is selected. */
+/** Atmospheric recipes; built-in theme selection applies the focus treatment on top. */
 export const THEME_VISUAL_DEFAULTS: Record<ThemeId, ThemeVisualDefaults> = {
   'quantum-blue': {
     appearance: { windowOpacity: 0.88, sidebarOpacity: 0.8, panelOpacity: 0.86, inputOpacity: 0.9, borderRadius: 'compact' },

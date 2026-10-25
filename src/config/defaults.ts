@@ -31,15 +31,15 @@ export const DEFAULT_FONT: FontConfig = {
 
 export const DEFAULT_APPEARANCE: AppearanceConfig = {
   transparencyEnabled: true,
-  windowOpacity: 0.9,
-  sidebarOpacity: 0.82,
-  panelOpacity: 0.88,
-  inputOpacity: 0.9,
+  windowOpacity: 0.94,
+  sidebarOpacity: 0.94,
+  panelOpacity: 0.96,
+  inputOpacity: 0.98,
   borderRadius: 'soft',
   contentWidth: 'standard',
   animationsEnabled: true,
   contentStyle: 'refined',
-  diffTint: 1,
+  diffTint: 0.75,
 };
 
 export const DEFAULT_WALLPAPER: WallpaperConfig = {
@@ -51,9 +51,9 @@ export const DEFAULT_WALLPAPER: WallpaperConfig = {
   positionX: 50,
   positionY: 50,
   scale: 1,
-  opacity: 0.72,
+  opacity: 0.58,
   blur: 0,
-  overlay: 0.42,
+  overlay: 0.46,
   saturation: 0.9,
   brightness: 0.9,
   tintEnabled: true,
@@ -63,16 +63,16 @@ export const DEFAULT_WALLPAPER: WallpaperConfig = {
 export const DEFAULT_EFFECTS: EffectsConfig = {
   enabled: true,
   preset: 'gold-dust',
-  density: 'medium',
+  density: 'low',
   particleCount: 0,
   particleSize: 2.5,
   particleSpeed: 0.7,
-  particleOpacity: 0.82,
+  particleOpacity: 0.45,
   connectLines: false,
   mouseInteraction: false,
   parallax: false,
   cursorGlow: false,
-  glowIntensity: 'standard',
+  glowIntensity: 'soft',
   animationSpeed: 'gentle',
   autoThemeColors: true,
   particleColors: [],
@@ -88,9 +88,9 @@ export const DEFAULT_GLASS: GlassConfig = {
   blurLevel: 'light',
   strength: 0,
   saturation: 1.05,
-  panelOpacity: 0.88,
+  panelOpacity: 0.94,
   borderHighlight: 0.36,
-  shadow: 0.42,
+  shadow: 0.2,
 };
 
 /** Default speech-bubble lines (one phrase per entry). */
@@ -137,10 +137,10 @@ export const MIN_OPACITY = 0.55;
 
 /** Recommended (safe) values the "restore recommended" action reverts to. */
 export const RECOMMENDED_OPACITY = {
-  windowOpacity: 0.9,
-  sidebarOpacity: 0.82,
-  panelOpacity: 0.88,
-  inputOpacity: 0.9,
+  windowOpacity: 0.94,
+  sidebarOpacity: 0.94,
+  panelOpacity: 0.96,
+  inputOpacity: 0.98,
 } as const;
 
 /** A deep, frozen copy of the defaults (safe to hand to callers). */

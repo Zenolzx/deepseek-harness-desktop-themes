@@ -315,28 +315,35 @@ export function FontCard(props: {
   fallbackText: string;
   preview: string;
   codePreview: string;
+  /** Optional status/action row rendered under the preview. */
+  statusText?: string;
+  statusTone?: 'ok' | 'warn' | 'muted';
+  action?: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      className={`dth-font-card${props.selected ? ' is-selected' : ''}${props.installed ? '' : ' is-unavailable'}`}
-      aria-pressed={props.selected}
-      onClick={props.onSelect}
-    >
-      <span className="dth-font-card-head">
-        <span className="dth-font-card-name">{props.label}</span>
-        <span className={`dth-font-badge${props.installed ? ' is-installed' : ''}`}>
-          {props.installed ? props.installedText : props.fallbackText}
-        </span>
-      </span>
-      <span
-        className="dth-font-card-preview"
-        style={{ fontFamily: props.family.length > 0 ? quoteFont(props.family) : undefined }}
+    <div className={`dth-font-card${props.selected ? ' is-selected' : ''}${props.installed ? '' : ' is-unavailable'}`}>
+      <button
+        type="button"
+        className="dth-font-card-select"
+        aria-pressed={props.selected}
+        onClick={props.onSelect}
       >
-        <span className="dth-font-card-line">{props.preview}</span>
-        <code className="dth-font-card-code" style={{ fontFamily: 'inherit' }}>{props.codePreview}</code>
-      </span>
-    </button>
+        <span className="dth-font-card-head">
+          <span className="dth-font-card-name">{props.label}</span>
+          <span className={`dth-font-badge${props.installed ? ' is-installed' : ''}${props.statusTone === 'muted' ? ' is-muted' : ''}`}>
+            {props.statusText ?? (props.installed ? props.installedText : props.fallbackText)}
+          </span>
+        </span>
+        <span
+          className="dth-font-card-preview"
+          style={{ fontFamily: props.family.length > 0 ? quoteFont(props.family) : undefined }}
+        >
+          <span className="dth-font-card-line">{props.preview}</span>
+          <code className="dth-font-card-code" style={{ fontFamily: 'inherit' }}>{props.codePreview}</code>
+        </span>
+      </button>
+      {props.action !== undefined ? <div className="dth-font-card-action">{props.action}</div> : null}
+    </div>
   );
 }
 

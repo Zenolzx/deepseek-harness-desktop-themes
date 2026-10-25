@@ -43,6 +43,10 @@
 | `ligatures` | boolean | true | 代码连字 |
 | `smoothing` | boolean | true | 字体平滑 |
 
+> 一键下载的字体字节**不写入 settings**：它们存在独立数据库
+> `dsh-desktop-themes-fonts`（object store `fonts`）中，配置只保留 preset key。
+> 因此导出 JSON 不会夹带字体文件；换机器后未下载的字体会自动回退到别名/回退栈。
+
 ### `appearance`
 
 | 字段 | 类型 | 默认 | 范围 |

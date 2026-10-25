@@ -1,11 +1,19 @@
 /**
  * Font system: fallback stack construction and CSS generation.
  *
- * Strategy: override the two product font tokens (`--dsw-font-family` for UI,
- * `--ds-font-family-code` for code) plus a small body/code rule set. Product
- * components consume those tokens, so the change propagates without touching
- * any product DOM selector. Missing fonts fall through the stack — never a
- * crash, never a blank surface.
+ * Strategy: override the product font tokens (`--dsw-font-family` for UI,
+ * `--ds-font-family-code` for code) and add a small explicit rule set for the
+ * two places the product hard-codes a family instead of consuming the token:
+ *
+ *  - the composer editor declares `font-family: Inter, var(--dsw-font-family)`,
+ *    which pins Latin text to Inter and makes a custom UI font appear to do
+ *    nothing on an English UI;
+ *  - form controls inherit the browser default instead of the product token
+ *    in some surfaces.
+ *
+ * Each stack carries the font's localized family names (e.g. `霞鹜文楷`) next
+ * to its English name, so a font installed by the OS under a localized name is
+ * still found. Missing fonts fall through the stack — never a blank surface.
  */
 
 import type { FontConfig } from '../config/types.ts';
@@ -32,7 +40,15 @@ export function buildFontCss(font: FontConfig): string {
     `  --dsw-font-mono: ${codeStack} !important;`,
     `}`,
     `html, body {`,
-    `  font-family: var(--dsw-font-family);`,
+    `  font-family: var(--dsw-font-family) !important;`,
+    `}`,
+    // The composer pins Latin glyphs to Inter before the token; override the
+    // control itself so the chosen font is actually visible. The xterm helper
+    // textarea stays untouched (it positions the IME caret, not text).
+    `body textarea:not(.xterm-helper-textarea),`,
+    `body input:not(.xterm-helper-textarea),`,
+    `body select {`,
+    `  font-family: var(--dsw-font-family) !important;`,
     `}`,
     `body {`,
     `  font-size: ${font.fontSize}px;`,
@@ -40,8 +56,8 @@ export function buildFontCss(font: FontConfig): string {
     `  font-weight: ${font.fontWeight};`,
     `  ${smoothing}`,
     `}`,
-    `code, pre, kbd, samp {`,
-    `  font-family: var(--ds-font-family-code);`,
+    `pre, code, kbd, samp {`,
+    `  font-family: var(--ds-font-family-code) !important;`,
     `  font-size: ${font.codeFontSize}px;`,
     `  ${ligatures}`,
     `}`,

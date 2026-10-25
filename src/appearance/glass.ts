@@ -9,6 +9,8 @@
  */
 
 import type { GlassConfig } from '../config/types.ts';
+import type { ThemePalette } from '../themes/palette.ts';
+import { rgba } from '../utils/color.ts';
 
 export interface ResolvedGlass {
   /** Effective backdrop blur radius in px. */
@@ -61,14 +63,16 @@ export function supportsBackdropFilter(): boolean {
  * panel, dialogs, toasts). Disabled glass still emits a solid surface so the
  * plugin UI remains readable.
  */
-export function buildGlassCss(glass: GlassConfig, supported: boolean): string {
+export function buildGlassCss(glass: GlassConfig, supported: boolean, palette?: ThemePalette): string {
   const resolved = resolveGlass(glass);
+  const surface = palette?.bgSurface3 ?? '#111113';
+  const border = palette?.textPrimary ?? '#ffffff';
 
   if (!glass.enabled || !resolved.applyBlur || !supported) {
     return [
       '.dth-glass {',
-      '  background: rgba(17, 17, 19, ' + resolved.panelOpacity + ');',
-      '  border: 1px solid rgba(255, 255, 255, ' + (resolved.borderHighlight * 0.08).toFixed(3) + ');',
+      '  background: ' + rgba(surface, resolved.panelOpacity) + ';',
+      '  border: 1px solid ' + rgba(border, resolved.borderHighlight * 0.08) + ';',
       '}',
     ].join('\n');
   }
@@ -81,8 +85,8 @@ export function buildGlassCss(glass: GlassConfig, supported: boolean): string {
     '.dth-glass {',
     '  -webkit-backdrop-filter: blur(' + resolved.blurPx + 'px) saturate(' + resolved.saturation + ');',
     '  backdrop-filter: blur(' + resolved.blurPx + 'px) saturate(' + resolved.saturation + ');',
-    '  background: rgba(17, 17, 19, ' + (resolved.panelOpacity * 0.55).toFixed(3) + ');',
-    '  border: 1px solid rgba(255, 255, 255, ' + (resolved.borderHighlight * 0.14).toFixed(3) + ');',
+    '  background: ' + rgba(surface, resolved.panelOpacity) + ';',
+    '  border: 1px solid ' + rgba(border, resolved.borderHighlight * 0.14) + ';',
     shadow,
     '}',
   ]

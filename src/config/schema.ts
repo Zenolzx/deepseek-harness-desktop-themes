@@ -70,15 +70,15 @@ const fontSchema = z.object({
 
 const appearanceSchema = z.object({
   transparencyEnabled: z.boolean().default(true),
-  windowOpacity: z.number().min(0.55).max(1).step(0.01).default(0.9),
-  sidebarOpacity: z.number().min(0.55).max(1).step(0.01).default(0.82),
-  panelOpacity: z.number().min(0.55).max(1).step(0.01).default(0.88),
-  inputOpacity: z.number().min(0.55).max(1).step(0.01).default(0.9),
+  windowOpacity: z.number().min(0.55).max(1).step(0.01).default(0.94),
+  sidebarOpacity: z.number().min(0.55).max(1).step(0.01).default(0.94),
+  panelOpacity: z.number().min(0.55).max(1).step(0.01).default(0.96),
+  inputOpacity: z.number().min(0.55).max(1).step(0.01).default(0.98),
   borderRadius: z.union(RADIUS_LEVELS).default('soft'),
   contentWidth: z.union(WIDTH_LEVELS).default('standard'),
   animationsEnabled: z.boolean().default(true),
   contentStyle: z.union(CONTENT_STYLES).default('refined'),
-  diffTint: z.number().min(0.25).max(2).step(0.25).default(1),
+  diffTint: z.number().min(0.25).max(2).step(0.25).default(0.75),
 });
 
 const wallpaperSchema = z.object({
@@ -90,9 +90,9 @@ const wallpaperSchema = z.object({
   positionX: z.number().min(0).max(100).step(1).default(50),
   positionY: z.number().min(0).max(100).step(1).default(50),
   scale: z.number().min(0.5).max(3).step(0.05).default(1),
-  opacity: z.number().min(0).max(1).step(0.01).default(0.72),
+  opacity: z.number().min(0).max(1).step(0.01).default(0.58),
   blur: z.number().min(0).max(50).step(1).default(0),
-  overlay: z.number().min(0).max(1).step(0.01).default(0.42),
+  overlay: z.number().min(0).max(1).step(0.01).default(0.46),
   saturation: z.number().min(0).max(2).step(0.05).default(0.9),
   brightness: z.number().min(0.5).max(1.5).step(0.05).default(0.9),
   tintEnabled: z.boolean().default(true),
@@ -102,16 +102,16 @@ const wallpaperSchema = z.object({
 const effectsSchema = z.object({
   enabled: z.boolean().default(true),
   preset: z.union(EFFECT_PRESETS).default('gold-dust'),
-  density: z.union(PARTICLE_DENSITIES).default('medium'),
+  density: z.union(PARTICLE_DENSITIES).default('low'),
   particleCount: z.number().min(0).max(400).step(1).default(0),
   particleSize: z.number().min(1).max(6).step(0.5).default(2.5),
   particleSpeed: z.number().min(0.2).max(3).step(0.1).default(0.7),
-  particleOpacity: z.number().min(0).max(1).step(0.01).default(0.82),
+  particleOpacity: z.number().min(0).max(1).step(0.01).default(0.45),
   connectLines: z.boolean().default(false),
   mouseInteraction: z.boolean().default(false),
   parallax: z.boolean().default(false),
   cursorGlow: z.boolean().default(false),
-  glowIntensity: z.union(LIGHT_INTENSITIES).default('standard'),
+  glowIntensity: z.union(LIGHT_INTENSITIES).default('soft'),
   animationSpeed: z.union(ANIMATION_SPEEDS).default('gentle'),
   autoThemeColors: z.boolean().default(true),
   particleColors: z.array(z.string()).default([]),
@@ -127,9 +127,9 @@ const glassSchema = z.object({
   blurLevel: z.union(BLUR_LEVELS).default('light'),
   strength: z.number().min(0).max(40).step(1).default(0),
   saturation: z.number().min(0.5).max(2).step(0.05).default(1.05),
-  panelOpacity: z.number().min(0).max(1).step(0.01).default(0.88),
+  panelOpacity: z.number().min(0).max(1).step(0.01).default(0.94),
   borderHighlight: z.number().min(0).max(1).step(0.01).default(0.36),
-  shadow: z.number().min(0).max(1).step(0.01).default(0.42),
+  shadow: z.number().min(0).max(1).step(0.01).default(0.2),
 });
 
 const customThemeColorsSchema = z.object({
