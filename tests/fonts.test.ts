@@ -109,3 +109,12 @@ test('font CSS also overrides the composer / form-control family', () => {
   assert.ok(css.includes('--dsw-font-family'));
   assert.ok(css.includes('--ds-font-family-code'));
 });
+
+test('font CSS overrides the body-level product tokens that reset the stack', () => {
+  const css = buildFontCss({ ...DEFAULT_FONT, uiPreset: 'lxgw-wenkai' });
+  assert.ok(css.includes(':root, body'), 'body is targeted, not only :root');
+  assert.ok(css.includes('--dsh-font-family-text'), 'product user font seat is filled');
+  assert.ok(css.includes('--dsh-font-family-code'), 'product code font seat is filled');
+  assert.ok(css.includes('--dsh-font-family-text-default'), 'product default seat is filled');
+  assert.ok(css.includes('font-family: "LXGW WenKai"'), 'body rule uses the stack directly');
+});

@@ -2,8 +2,10 @@
  * Font system: fallback stack construction and CSS generation.
  *
  * Strategy: override the product font tokens (`--dsw-font-family` for UI,
- * `--ds-font-family-code` for code) and add a small explicit rule set for the
- * two places the product hard-codes a family instead of consuming the token:
+ * `--ds-font-family-code` for code) on **both `:root` and `body`**, because the
+ * product's own base sheet redefines them on `body` from its user font-family
+ * setting. Also fill the product's `--dsh-font-family-*` seats, and add a small
+ * explicit rule set for the places the product hard-codes a family:
  *
  *  - the composer editor declares `font-family: Inter, var(--dsw-font-family)`,
  *    which pins Latin text to Inter and makes a custom UI font appear to do
@@ -34,13 +36,31 @@ export function buildFontCss(font: FontConfig): string {
     : `font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;`;
 
   return [
-    `:root {`,
+    // The product defines `--dsw-font-family` on `:root` *and* redefines it on
+    // `body` from its own user font-family setting:
+    //
+    //   body { --dsw-font-family: var(--dsh-font-family-text, ...), ...; }
+    //
+    // A root-only override therefore loses for every descendant of body — the
+    // settings panel still inherits the body font, but the conversation and
+    // chrome do not. Write the override on both elements, and also fill the
+    // product's own `--dsh-font-family-*` seats so its fallback path uses the
+    // chosen font too.
+    `:root, body {`,
     `  --dsw-font-family: ${uiStack} !important;`,
     `  --ds-font-family-code: ${codeStack} !important;`,
     `  --dsw-font-mono: ${codeStack} !important;`,
+    `  --dsh-font-family-text: ${uiStack} !important;`,
+    `  --dsh-font-family-code: ${codeStack} !important;`,
+    `  --dsh-font-family-terminal: ${codeStack} !important;`,
+    `  --dsh-font-family-text-default: ${uiStack} !important;`,
+    `  --dsh-font-family-code-default: ${codeStack} !important;`,
     `}`,
+    // Use the stack directly as well: a later product rule may rewrite the
+    // variables above, but an `!important` font-family declaration on the
+    // element still wins for body and form controls.
     `html, body {`,
-    `  font-family: var(--dsw-font-family) !important;`,
+    `  font-family: ${uiStack} !important;`,
     `}`,
     // The composer pins Latin glyphs to Inter before the token; override the
     // control itself so the chosen font is actually visible. The xterm helper
@@ -48,7 +68,7 @@ export function buildFontCss(font: FontConfig): string {
     `body textarea:not(.xterm-helper-textarea),`,
     `body input:not(.xterm-helper-textarea),`,
     `body select {`,
-    `  font-family: var(--dsw-font-family) !important;`,
+    `  font-family: ${uiStack} !important;`,
     `}`,
     `body {`,
     `  font-size: ${font.fontSize}px;`,
@@ -57,7 +77,7 @@ export function buildFontCss(font: FontConfig): string {
     `  ${smoothing}`,
     `}`,
     `pre, code, kbd, samp {`,
-    `  font-family: var(--ds-font-family-code) !important;`,
+    `  font-family: ${codeStack} !important;`,
     `  font-size: ${font.codeFontSize}px;`,
     `  ${ligatures}`,
     `}`,

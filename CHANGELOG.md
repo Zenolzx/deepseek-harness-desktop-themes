@@ -12,15 +12,21 @@
 
 ### Fixed
 
+- **全局字体不生效（根因）**：产品 `base.css` 在 `body` 上重新定义了
+  `--dsw-font-family: var(--dsh-font-family-text, …)`，只在 `:root` 上覆盖会被
+  body 级声明击败——设置页继承 body 字体，但会话、侧边栏、标题等主体区域仍用默认字体。
+  现在同时覆盖 `:root` 与 `body`，并填充产品的 `--dsh-font-family-text/code/terminal`
+  与 `-default` 变量；`html/body` 与输入控件直接写入字体栈，避免再次被变量重置。
 - **字体不生效**：产品 composer 写死 `font-family: Inter, var(--dsw-font-family)`，英文永远使用 Inter；插件现在显式覆盖 `textarea/input/select` 的字体族。
 - **本地化家族名**：中文 Windows 把霞鹜文楷注册为 `霞鹜文楷`，插件只写 `LXGW WenKai` 时会解析失败；每个预设现在带本地化/英文/Nerd Font 别名，并按「主家族 → 别名 → 回退」生成字体栈。
 - 安装检测改为逐个别名进行 canvas 探测并缓存，下载/删除后失效；修复 `document.fonts.check()` 误判的旧说明。
 - 字体栈去重不再区分大小写，避免同一家族重复出现。
+- 缺失字体提示按「界面字体 / 代码字体」分别显示，不再出现「界面字体已下载却提示未安装」的歧义。
 
 ### Changed
 
 - 字体预设从 8+8 扩展为 9+8（新增 KaiTi），预设卡片按可用性排序。
-- 单元测试从 103 增至 114（字体别名、去重、下载目录、CSS 覆盖）。
+- 单元测试从 103 增至 115（字体别名、去重、下载目录、body 级 token 覆盖）。
 - README / `docs/fonts.md` 更新一键下载、许可、已知限制与故障排查。
 
 ## Unreleased

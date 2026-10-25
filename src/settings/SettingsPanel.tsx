@@ -21,6 +21,8 @@ import {
   CUSTOM_PRESET_KEY,
   CODE_PREVIEW_TEXT,
   FONT_PREVIEW_TEXT,
+  buildCodeStack,
+  buildUiStack,
   isFontAvailable,
   type FontPreset,
 } from '../fonts/presets.ts';
@@ -446,19 +448,26 @@ function FontSection(props: { config: DesktopThemesConfig; t: Translate; update:
 
   const selectedUi = uiOptions.find((option) => option.key === font.uiPreset);
   const selectedCode = codeOptions.find((option) => option.key === font.codePreset);
-  const missing = [selectedUi, selectedCode].some(
-    (option) =>
-      option !== undefined &&
-      option.key !== 'system' &&
-      option.key !== 'system-mono' &&
-      !isReady(option),
-  );
+  const isMissing = (option: FontOption | undefined): boolean =>
+    option !== undefined &&
+    option.key !== 'system' &&
+    option.key !== 'system-mono' &&
+    !isReady(option);
+  const missingUi = isMissing(selectedUi);
+  const missingCode = isMissing(selectedCode);
+
+  const previewStackFor = (option: FontOption): string | undefined => {
+    if (option.key === 'system') return buildUiStack('system', '');
+    if (option.key === 'system-mono') return buildCodeStack('system-mono', '');
+    return undefined;
+  };
 
   const cardProps = (option: FontOption) => {
     const status = statusFor(option);
     return {
       label: option.label,
       family: option.family,
+      previewFamily: previewStackFor(option),
       installed: isReady(option),
       selected: option.key === font.uiPreset,
       onSelect: () => setFont({ uiPreset: option.key }),
@@ -477,6 +486,7 @@ function FontSection(props: { config: DesktopThemesConfig; t: Translate; update:
     return {
       label: option.label,
       family: option.family,
+      previewFamily: previewStackFor(option),
       installed: isReady(option),
       selected: option.key === font.codePreset,
       onSelect: () => setFont({ codePreset: option.key }),
@@ -498,7 +508,8 @@ function FontSection(props: { config: DesktopThemesConfig; t: Translate; update:
         {installedSummary.count > 0 ? ` ${t('font.library.installed')} ${installedSummary.count} · ${formatFontBytes(installedSummary.bytes)}` : ''}
       </Notice>
       {error !== null ? <Notice tone="error">{error}</Notice> : null}
-      {missing ? <Notice tone="warn">{t('font.selectedMissing')}</Notice> : null}
+      {missingUi ? <Notice tone="warn">{t('font.selectedMissingUi')}</Notice> : null}
+      {missingCode ? <Notice tone="warn">{t('font.selectedMissingCode')}</Notice> : null}
       <div className="dth-field">
         <div className="dth-field-label">
           <label>{props.t('font.uiFamily')}</label>

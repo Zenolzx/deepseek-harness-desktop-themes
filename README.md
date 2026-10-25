@@ -1,4 +1,4 @@
-# DeepSeek Harness Desktop Themes
+﻿# DeepSeek Harness Desktop Themes
 
 一个可安装、可配置、可卸载的 DeepSeek Harness 桌面外观插件。为长时间编程与对话场景提供现代、克制、内容优先的界面：**六套签名主题与专属壁纸、字体预设、光影与粒子动效、持久化自定义壁纸、毛玻璃、自定义配色主题**。
 
@@ -217,9 +217,10 @@ dsh web
 
 ### 为什么以前「字体不生效」
 
-1. 产品输入框写死了 `font-family: Inter, var(--dsw-font-family)`，英文始终走 Inter；插件现在直接覆盖输入框/表单控件的字体族。
-2. 字体家族名有本地化差异：中文 Windows 把霞鹜文楷注册为 `霞鹜文楷`，英文环境是 `LXGW WenKai`；插件现在把两种写法（以及 Nerd Font 变体）都放进字体栈，并逐个探测。
-3. 只有「检测系统安装」没有「安装到插件内」；现在默认提供一键下载，未安装时仍按回退栈降级，绝不空白/崩溃。
+1. 产品 `base.css` 在 `body` 上重新定义了 `--dsw-font-family: var(--dsh-font-family-text, …)`；只在 `:root` 上覆盖会被 body 级声明击败，所以设置页看起来变了、会话和侧边栏却没变。插件现在同时写 `:root` 与 `body`，并填充产品的 `--dsh-font-family-*` 变量。
+2. 产品输入框写死了 `font-family: Inter, var(--dsw-font-family)`，英文始终走 Inter；插件现在直接覆盖输入框/表单控件的字体族。
+3. 字体家族名有本地化差异：中文 Windows 把霞鹜文楷注册为 `霞鹜文楷`，英文环境是 `LXGW WenKai`；插件现在把两种写法（以及 Nerd Font 变体）都放进字体栈，并逐个探测。
+4. 只有「检测系统安装」没有「安装到插件内」；现在默认提供一键下载，未安装时仍按回退栈降级，绝不空白/崩溃。
 
 - 代码回退栈：`"JetBrains Mono", "Maple Mono", "Cascadia Code", "SFMono-Regular", Consolas, Menlo, "PingFang SC", "Microsoft YaHei", monospace`
 - 界面回退栈：`-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif`
@@ -251,7 +252,7 @@ npm run typecheck && npm test && npm run build
 结果（当前环境 Node 24 / Windows）：
 
 - `tsc --noEmit`：0 错误
-- 单元测试：**114 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体别名/回退/下载目录、壁纸校验、性能档位、导入导出与样式清理）
+- 单元测试：**115 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体别名/回退/下载目录、壁纸校验、性能档位、导入导出与样式清理）
 - 构建：`lib/index.js` + `lib/client.js` 成功产出
 
 ---
@@ -299,7 +300,7 @@ dsh-desktop-themes/
 │   │   └── font-store.ts      # IndexedDB 字体 Blob 存储（独立数据库）
 │   ├── settings/              # 设置页 / 控件 / 预览 / 双语
 │   └── utils/                 # 颜色 / store / 样式控制器
-├── tests/                     # 114 个单元测试
+├── tests/                     # 115 个单元测试
 ├── ROADMAP.md                 # 2.0 分阶段路线图
 └── docs/                      # install / configuration / fonts / platform / performance
 ```

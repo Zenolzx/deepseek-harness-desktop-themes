@@ -78,19 +78,51 @@
 - 状态区分「系统已安装 / 插件内 / 可下载 / 不可用，将使用回退字体」。
 - 选择后立即预览并防抖写入宿主设置；刷新/重启后优先恢复明确保存的版本。
 
-## 输入框与硬编码字体
+## 输入框、body 级 token 与硬编码字体
 
-产品的 composer 曾写死 `font-family: Inter, var(--dsw-font-family)`，
-导致英文永远显示 Inter。插件现在显式覆盖：
+产品 `base.css` 有两层字体变量：
 
 ```css
-html, body { font-family: var(--dsw-font-family) !important; }
-body textarea:not(.xterm-helper-textarea),
-body input:not(.xterm-helper-textarea),
-body select { font-family: var(--dsw-font-family) !important; }
+:root {
+  --dsh-font-family-text-default: -apple-system, …;
+  --dsw-font-family: var(--dsh-font-family-text-default);
+}
+body {
+  --dsw-font-family: var(--dsh-font-family-text, var(--dsh-font-family-text-default)),
+                      var(--dsh-font-family-text-default);
+}
 ```
 
-代码块通过 `--ds-font-family-code` 覆盖，终端隐藏 textarea 不受影响。
+只在 `:root` 上覆盖 `--dsw-font-family`，会被 **body 上的同名声明**击败：设置面板继承
+body 字体，但会话、侧边栏、标题等主体区域仍使用默认字体。插件现在同时覆盖两层，
+并填充产品自己的用户字体变量：
+
+```css
+:root, body {
+  --dsw-font-family: "<选择>", … !important;
+  --ds-font-family-code: "<选择>", … !important;
+  --dsh-font-family-text: "<选择>", … !important;
+  --dsh-font-family-code: "<选择>", … !important;
+  --dsh-font-family-terminal: "<选择>", … !important;
+  --dsh-font-family-text-default: "<选择>", … !important;
+  --dsh-font-family-code-default: "<选择>", … !important;
+}
+html, body { font-family: "<选择>", … !important; }
+```
+
+产品的 composer 另外写死了
+`font-family: Inter, var(--dsw-font-family)`，导致英文永远显示 Inter；插件直接覆盖
+输入控件：
+
+```css
+body textarea:not(.xterm-helper-textarea),
+body input:not(.xterm-helper-textarea),
+body select { font-family: "<选择>", … !important; }
+```
+
+代码块通过 `--ds-font-family-code` 与 `pre/code/kbd/samp` 覆盖；终端隐藏 textarea
+不受影响。字体卡片中的「系统默认」预览会显式使用平台默认栈，避免因为面板本身
+已经换成 WenKai 而看不出差异。
 
 ## 回退栈
 
