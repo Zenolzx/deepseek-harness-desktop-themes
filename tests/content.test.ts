@@ -107,5 +107,5 @@ test('appearance coercion keeps and clamps the new fields', () => {
 
   const defaults = createDefaultConfig();
   assert.equal(defaults.appearance.contentStyle, 'refined');
-  assert.equal(defaults.appearance.diffTint, 0.75);
+  assert.equal(defaults.appearance.diffTint, 0.6);
 });

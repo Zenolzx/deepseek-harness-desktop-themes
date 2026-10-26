@@ -27,7 +27,7 @@ import { SpeechLinesEditor } from '../settings/controls.tsx';
 import type { WallpaperPickResult } from '../settings/SettingsPanel.tsx';
 import { speakLine, VOICE_STYLE_IDS } from './speech.ts';
 import moonfoxSrc from '../assets/pets/moonfox.jpg';
-import { applyBuiltinThemePreset, isBuiltinThemeId } from '../client/theme-presets.ts';
+import { switchTheme } from '../themes/switch.ts';
 
 /** Loose view of the global `useSessions` selector hook (session list + running bits). */
 interface SessionsSnapshot {
@@ -193,6 +193,8 @@ export function Pet(props: PetFace) {
   const [recent, setRecent] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const livePosRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -370,19 +372,56 @@ export function Pet(props: PetFace) {
     }
   }, [runningKey, onTurnComplete]);
 
-  // Close on outside pointerdown / Escape while open.
+  // Close on outside pointerdown. Escape handling lives in the focus-trap
+  // effect below so it can also return focus to the pet.
   useEffect(() => {
     if (!open) return;
     const onDown = (event: globalThis.PointerEvent) => {
       if (rootRef.current !== null && !rootRef.current.contains(event.target as Node)) setOpen(false);
     };
-    const onKey = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
     document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('pointerdown', onDown);
+    };
+  }, [open]);
+
+  // Focus trap for the quick menu: move focus inside on open, wrap Tab, and
+  // return focus to the pet on Escape/close.
+  useEffect(() => {
+    if (!open) return;
+    const menu = menuRef.current;
+    if (menu === null) return;
+    const focusables = (): HTMLElement[] =>
+      Array.from(
+        menu.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.offsetParent !== null);
+    const frame = requestAnimationFrame(() => focusables()[0]?.focus());
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const list = focusables();
+      if (list.length === 0) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === null)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
@@ -468,7 +507,7 @@ export function Pet(props: PetFace) {
     if (result.ok) void props.listRecentWallpapers().then(setRecent);
   };
 
-  const setTheme = (id: string) => props.commit(isBuiltinThemeId(id) ? applyBuiltinThemePreset(config, id) : { ...config, theme: id });
+  const setTheme = (id: string) => props.commit({ ...switchTheme(config, id, 'palette'), scene: '' });
   const setFont = (patch: Partial<DesktopThemesConfig['font']>) =>
     props.commit({ ...config, font: { ...config.font, ...patch } });
   const setEffects = (patch: Partial<DesktopThemesConfig['effects']>) =>
@@ -493,10 +532,11 @@ export function Pet(props: PetFace) {
     <div ref={rootRef} className="dth-pet" style={rootStyle} data-still={still ? 'true' : 'false'} data-dragging={drag !== null ? 'true' : 'false'} data-open={open ? 'true' : 'false'} data-style="moonfox">
       <div className="dth-pet-anchor">
         <button
+          ref={triggerRef}
           type="button"
           className="dth-pet-figure-btn"
           aria-label={t('pet.title')}
-          aria-haspopup="menu"
+          aria-haspopup="dialog"
           aria-expanded={open}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -518,11 +558,33 @@ export function Pet(props: PetFace) {
           </span>
         ) : null}
         {open ? (
-          <div className="dth-pet-menu" role="dialog" aria-label={t('pet.title')} data-up={menuUp ? 'true' : 'false'} data-left={menuLeft ? 'true' : 'false'}>
-            <div className="dth-pet-menu-tabs" role="tablist" aria-label={t('pet.title')}>
+          <div ref={menuRef} className="dth-pet-menu" role="dialog" aria-modal="false" aria-label={t('pet.title')} data-up={menuUp ? 'true' : 'false'} data-left={menuLeft ? 'true' : 'false'}>
+            <button
+              type="button"
+              className="dth-pet-menu-close"
+              aria-label={t('pet.quick.close')}
+              onClick={() => { setOpen(false); triggerRef.current?.focus(); }}
+            >
+              ×
+            </button>
+            <div className="dth-pet-menu-tabs" role="tablist" aria-label={t('pet.title')} onKeyDown={(event) => {
+              const index = TABS.findIndex((item) => item.id === tab);
+              if (index < 0) return;
+              let next: number | null = null;
+              if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % TABS.length;
+              else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + TABS.length) % TABS.length;
+              else if (event.key === 'Home') next = 0;
+              else if (event.key === 'End') next = TABS.length - 1;
+              if (next === null) return;
+              event.preventDefault();
+              const id = TABS[next].id;
+              setTab(id);
+              requestAnimationFrame(() => document.getElementById(`dth-pet-tab-${id}`)?.focus());
+            }}>
               {TABS.map((item) => (
                 <button
                   key={item.id}
+                  id={`dth-pet-tab-${item.id}`}
                   type="button"
                   role="tab"
                   aria-selected={tab === item.id}
@@ -668,7 +730,7 @@ export function Pet(props: PetFace) {
                     onClick={() => setEffects({ enabled: !config.effects.enabled })}
                   >
                     <span className="dth-toggle-knob" />
-                    <span className="dth-toggle-text">{config.effects.enabled ? 'On' : 'Off'}</span>
+                    <span className="dth-toggle-text">{config.effects.enabled ? t('common.on') : t('common.off')}</span>
                   </button>
                   <label className="dth-pet-label" htmlFor="dth-pet-glow">
                     {t('pet.quick.glow')}
@@ -681,7 +743,7 @@ export function Pet(props: PetFace) {
                   >
                     {GLOW_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label}
+                        {t(`light.intensity.${option.value}` as I18nKey)}
                       </option>
                     ))}
                   </select>

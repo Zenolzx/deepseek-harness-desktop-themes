@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="paper-base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbf7ee"/>
+      <stop offset="0.55" stop-color="#f5f1e8"/>
+      <stop offset="1" stop-color="#e9e1d2"/>
+    </linearGradient>
+    <radialGradient id="paper-terra" cx="0.78" cy="0.72" r="0.55">
+      <stop offset="0" stop-color="#b3543b" stop-opacity="0.28"/>
+      <stop offset="0.45" stop-color="#b3543b" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#b3543b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="paper-sage" cx="0.18" cy="0.2" r="0.48">
+      <stop offset="0" stop-color="#6f8a72" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#6f8a72" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="paper-grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <filter id="paper-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="48"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#paper-base)"/>
+  <circle cx="1210" cy="720" r="430" fill="#b3543b" opacity="0.16" filter="url(#paper-soft)"/>
+  <circle cx="300" cy="220" r="360" fill="#6f8a72" opacity="0.12" filter="url(#paper-soft)"/>
+  <rect width="1600" height="1000" fill="url(#paper-terra)"/>
+  <rect width="1600" height="1000" fill="url(#paper-sage)"/>
+  <g opacity="0.05" stroke="#1b1916" fill="none">
+    <path d="M0 760 C 320 700 540 820 820 760 S 1320 690 1600 740"/>
+    <path d="M0 800 C 340 740 560 860 840 800 S 1340 730 1600 780"/>
+    <path d="M0 840 C 360 780 580 900 860 840 S 1360 770 1600 820"/>
+  </g>
+  <rect width="1600" height="1000" filter="url(#paper-grain)" opacity="0.045"/>
+</svg>

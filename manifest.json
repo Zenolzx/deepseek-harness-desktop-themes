@@ -3,8 +3,8 @@
   "name": "DeepSeek Harness Desktop Themes",
   "id": "dsh-desktop-themes",
   "short_name": "Desktop Themes",
-  "description": "Installable desktop appearance plugin for DeepSeek Harness: six signature themes with curated wallpapers, font presets, one-click downloadable webfonts, lightweight particle/glow effects, glassmorphism, custom color themes, and a draggable animated Moonfox desktop pet.",
-  "version": "1.8.0",
+  "description": "DSH 工作环境：纸感、矿物、夜幕三套成品风格，独立工作模式与氛围、壁纸生成配色、可迁移风格包与专业主题工作室。",
+  "version": "3.0.0",
   "author": "dsh-desktop-themes contributors",
   "license": "MIT",
   "entry": {
@@ -20,9 +20,16 @@
     "wallpaper",
     "glassmorphism",
     "custom-theme",
+    "contrast-audit",
+    "scenes",
+    "accessibility",
     "settings-section",
     "desktop-pet"
   ],
-  "platforms": ["windows", "macos", "linux"],
+  "platforms": [
+    "windows",
+    "macos",
+    "linux"
+  ],
   "note": "This file is human-readable plugin metadata. The authoritative plugin manifest consumed by DeepSeek Harness is the `dsh` field in package.json (bundle and client) plus the packaged cordis.patch.yml layer."
 }

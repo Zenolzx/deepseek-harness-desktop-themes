@@ -30,6 +30,9 @@ import { getEffectPreset } from '../effects/presets.ts';
 import { deleteWallpaper, getWallpaper, listWallpapers, newWallpaperId, putWallpaper } from '../storage/wallpaper-store.ts';
 import { detectLang } from '../settings/i18n.ts';
 import { SettingsPanel } from '../settings/SettingsPanel.tsx';
+import { Studio, StudioIcon, studioCss } from '../studio/Studio.tsx';
+import { createElement } from 'react';
+import { scheduledTheme } from '../studio/schedule.ts';
 import type { WallpaperPickResult } from '../settings/SettingsPanel.tsx';
 import { Pet, type PetFace } from '../pet/Pet.tsx';
 import { PLUGIN_BUILD_ID, PLUGIN_VERSION } from '../build-info.ts';
@@ -38,12 +41,15 @@ import petCss from '../pet/pet.css';
 import { hydrateBuiltinWallpaper } from './theme-presets.ts';
 import { loadConfigSnapshot, saveConfigSnapshot } from '../storage/config-store.ts';
 import { disposeFontFaces, hydrateInstalledFonts } from '../fonts/runtime.ts';
+import { buildWorkspaceCss } from '../workspace/recipes.ts';
 
 const PLUGIN_ID = 'dsh-desktop-themes';
 const OVERRIDE_SOURCE = PLUGIN_ID;
 const CONTENT_SOURCE = `${PLUGIN_ID}/content`;
 const PERSIST_DEBOUNCE_MS = 350;
 const SETTINGS_FIELDS: readonly SettingsField[] = [
+  'workspace',
+  'scene',
   'theme',
   'font',
   'appearance',
@@ -52,6 +58,7 @@ const SETTINGS_FIELDS: readonly SettingsField[] = [
   'effects',
   'performance',
   'customThemes',
+  'themeSchedule',
   'recentWallpapers',
   'pet',
 ];
@@ -150,6 +157,16 @@ function prefersReducedMotion(): boolean {
   }
 }
 
+/** OS-level "reduce transparency" (Windows contrast themes, macOS setting). */
+function prefersReducedTransparency(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try {
+    return window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
 export function apply(ctx: ClientContext): void {
   const theme = ctx.get('theme') as ThemeRuntimeLike | undefined;
   const slots = ctx.get('slots') as SlotsLike | undefined;
@@ -187,7 +204,7 @@ export function apply(ctx: ClientContext): void {
       }
     }
     for (const custom of config.customThemes) {
-      const signature = `${custom.base}|${JSON.stringify(custom.colors)}`;
+      const signature = `${custom.base}|${JSON.stringify(custom.colors)}|${JSON.stringify(custom.syntax)}|${JSON.stringify(custom.states)}`;
       const existing = customRegistrations.get(custom.id);
       if (existing !== undefined && existing.signature === signature) continue;
       if (existing !== undefined) existing.dispose();
@@ -200,10 +217,20 @@ export function apply(ctx: ClientContext): void {
   // ---- Style controllers --------------------------------------------------
   const staticStyles = createStyleController(`${PLUGIN_ID}/static`, PLUGIN_ID);
   const dynamicStyles = createStyleController(`${PLUGIN_ID}/dynamic`, PLUGIN_ID);
-  staticStyles.set(staticCss + '\n' + petCss);
+  staticStyles.set(staticCss + '\n' + petCss + '\n' + studioCss);
 
   // ---- Effects engine ------------------------------------------------------
   const effects = new EffectsEngine();
+
+  // ---- Accessibility / performance environment ----------------------------
+  let reducedTransparency = prefersReducedTransparency();
+  const syncEnvironmentAttributes = () => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.dataset.dthReducedTransparency = reducedTransparency ? 'true' : 'false';
+    root.dataset.dthReducedMotion = prefersReducedMotion() ? 'true' : 'false';
+  };
+  syncEnvironmentAttributes();
 
   // ---- Transparency layer management ------------------------------------
   let activeThemeId: string = store.get().theme;
@@ -253,7 +280,9 @@ export function apply(ctx: ClientContext): void {
       transparencyDisposer();
       transparencyDisposer = null;
     }
-    if (theme === undefined || !isTransparencyActive(config.appearance)) return;
+    // OS "reduce transparency" wins over the plugin preference: the product's
+    // own opaque surfaces are the safest fallback.
+    if (theme === undefined || reducedTransparency || !isTransparencyActive(config.appearance)) return;
     transparencyDisposer = theme.overrideTokens(
       OVERRIDE_SOURCE,
       buildTransparencyOverrides(config.appearance, activeThemeId, config.wallpaper.enabled, config.customThemes),
@@ -276,6 +305,13 @@ export function apply(ctx: ClientContext): void {
     const palette = resolvePalette(config.theme, config.customThemes);
     if (palette === undefined) return;
     const layer = buildContentLayer(palette, { style, tint: config.appearance.diffTint });
+    const custom = config.customThemes.find(item => item.id === config.theme);
+    if (custom?.syntax) {
+      const tokens = buildCustomThemeDefinition(custom).tokens;
+      for (const [key, value] of Object.entries(tokens)) {
+        if (key.startsWith('--shiki-token-')) layer[key] = { light: value, dark: value };
+      }
+    }
     if (Object.keys(layer).length === 0) return;
     contentDisposer = theme.overrideTokens(CONTENT_SOURCE, layer);
   };
@@ -288,16 +324,21 @@ export function apply(ctx: ClientContext): void {
       const palette = resolvePalette(config.theme, config.customThemes);
       const css = [
         buildFontCss(config.font),
-        buildWallpaperCss(config.wallpaper, palette?.accent),
+        buildWallpaperCss(config.wallpaper, palette?.accent, palette?.bgBase),
         buildGlassCss(glassFor(config), supportsBackdropFilter(), palette),
         buildLayoutCss(config),
+        buildWorkspaceCss(config),
       ].join('\n');
       dynamicStyles.set(css);
     });
   };
 
-  // Power-saver mode disables complex blur.
+  // Power-saver mode disables complex blur; reduced-transparency does the same
+  // regardless of the stored preference.
   const glassFor = (config: DesktopThemesConfig) => {
+    if (reducedTransparency) {
+      return { ...config.glass, enabled: false, blurLevel: 'off' as const };
+    }
     if (config.performance.level === 'power-saver') {
       return { ...config.glass, blurLevel: 'off' as const };
     }
@@ -346,7 +387,7 @@ export function apply(ctx: ClientContext): void {
     persistTimer = null;
     // Local snapshot first: it keeps the chosen appearance across a refresh
     // even when the Host offers no settings service or a write fails.
-    const localSaved = saveConfigSnapshot(store.get());
+    const localSaved = saveConfigSnapshot(previewBase ?? store.get());
     if (scope === null || Object.keys(pending).length === 0) {
       const ok = explicit ? localSaved : true;
       saveNotifier.set({ saving: false, saved: ok, failed: !ok });
@@ -382,7 +423,7 @@ export function apply(ctx: ClientContext): void {
       clearTimeout(persistTimer);
       persistTimer = null;
     }
-    queueAllFields(store.get());
+    queueAllFields(previewBase ?? store.get());
     saveNotifier.set({ saving: true, saved: false, failed: false });
     return flushPersist(true);
   };
@@ -394,6 +435,7 @@ export function apply(ctx: ClientContext): void {
     const themeChanged = next.theme !== prev.theme;
     const customThemesChanged = !deepEqual(next.customThemes, prev.customThemes);
     store.set(next);
+    if (customThemesChanged) syncCustomThemes(next);
     if (themeChanged) assertTheme(next.theme);
     if (
       themeChanged ||
@@ -403,6 +445,7 @@ export function apply(ctx: ClientContext): void {
       !deepEqual(next.wallpaper, prev.wallpaper) ||
       !deepEqual(next.glass, prev.glass) ||
       !deepEqual(next.performance, prev.performance)
+      || !deepEqual(next.workspace, prev.workspace)
     ) applyDynamic(next);
     if (
       themeChanged ||
@@ -427,14 +470,36 @@ export function apply(ctx: ClientContext): void {
     ) applyEffects(next);
   };
 
+  // ---- Preview path (live, never persisted) --------------------------------
+  // Theme cards preview on Space/hover-like gestures. A preview applies to the
+  // reactive store and every presenter exactly like a real switch, but it is
+  // not queued for persistence and can be rolled back byte-for-byte.
+  let previewBase: DesktopThemesConfig | null = null;
+  const preview = (next: DesktopThemesConfig) => {
+    if (previewBase === null) previewBase = store.get();
+    applyRuntime(hydrateBuiltinWallpaper(next));
+  };
+  const cancelPreview = () => {
+    if (previewBase === null) return;
+    const base = previewBase;
+    previewBase = null;
+    applyRuntime(base);
+  };
+
   // ---- Commit path (preview + persist) ------------------------------------
-  const commit = (next: DesktopThemesConfig) => {
+  const commit = (next: DesktopThemesConfig, automatic = false) => {
     next = hydrateBuiltinWallpaper(next);
+    if(next.wallpaper.sourceId && !next.wallpaper.sourceId.startsWith('builtin:') && next.wallpaper.path.startsWith('blob:')) {
+      wallpaperUrls.set(next.wallpaper.sourceId,next.wallpaper.path);
+    }
+    previewBase = null;
     const prev = store.get();
+    if (!automatic && next.theme !== prev.theme && next.themeSchedule.enabled) {
+      next = { ...next, themeSchedule: { ...next.themeSchedule, enabled: false } };
+    }
     if (deepEqual(next, prev)) return;
     syncCustomThemes(next);
     applyRuntime(next);
-    if (scope === null) return;
     for (const field of SETTINGS_FIELDS) {
       if (!deepEqual(next[field], prev[field])) {
         // The runtime object URL is never durable; persist only the managed id.
@@ -451,6 +516,77 @@ export function apply(ctx: ClientContext): void {
   applyEffects(store.get());
   syncCustomThemes(store.get());
   assertTheme(store.get().theme);
+
+  // ---- Reading-mode attribute (replaces the expensive `:has(pre)` selector) ----
+  // A throttled observer flips one attribute on <html>; the stylesheet then has
+  // a plain attribute selector, so streaming output no longer forces a
+  // document-wide style recalculation on every token.
+  let readingRaf = 0;
+  const syncReadingMode = () => {
+    if (readingRaf !== 0) return;
+    const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn: () => void) => setTimeout(fn, 16);
+    readingRaf = schedule(() => {
+      readingRaf = 0;
+      if (typeof document === 'undefined') return;
+      const root = document.documentElement;
+      root.dataset.dthReading = document.querySelector('[data-review-view], pre') !== null ? 'true' : 'false';
+      root.dataset.dthReview = document.querySelector('[data-review-view]') !== null ? 'true' : 'false';
+    }) as unknown as number;
+  };
+  let readingObserver: MutationObserver | null = null;
+  if (typeof MutationObserver !== 'undefined' && document.body !== null) {
+    readingObserver = new MutationObserver(syncReadingMode);
+    readingObserver.observe(document.body, { childList: true, subtree: true });
+    syncReadingMode();
+  }
+
+  // ---- Streaming / typing throttle for the particle layer ------------------
+  // The canvas is decorative: dropping it to 15 fps while text streams keeps
+  // the main thread available for layout without a visible pause.
+  let activityTimer: ReturnType<typeof setTimeout> | null = null;
+  let streamBurst = 0;
+  let streamObserver: MutationObserver | null = null;
+  const markActive = () => {
+    effects.setThrottled(true);
+    if (activityTimer !== null) clearTimeout(activityTimer);
+    activityTimer = setTimeout(() => {
+      activityTimer = null;
+      effects.setThrottled(false);
+    }, 900);
+  };
+  const onInput = () => markActive();
+  document.addEventListener('input', onInput, true);
+  document.addEventListener('compositionstart', onInput, true);
+  if (typeof MutationObserver !== 'undefined' && document.body !== null) {
+    streamObserver = new MutationObserver((records) => {
+      streamBurst += records.length;
+      if (streamBurst < 24) return;
+      streamBurst = 0;
+      markActive();
+    });
+    streamObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
+  // ---- Environment preference listeners -----------------------------------
+  const environmentQueries: MediaQueryList[] = [];
+  const onEnvironmentChange = () => {
+    reducedTransparency = prefersReducedTransparency();
+    syncEnvironmentAttributes();
+    applyDynamic(store.get());
+    applyTransparency(store.get());
+    applyEffects(store.get());
+  };
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    for (const queryText of ['(prefers-reduced-transparency: reduce)', '(prefers-reduced-motion: reduce)']) {
+      try {
+        const query = window.matchMedia(queryText);
+        query.addEventListener('change', onEnvironmentChange);
+        environmentQueries.push(query);
+      } catch {
+        /* older runtimes only expose addListener; the initial read still works */
+      }
+    }
+  }
 
   // ---- Boot reconciliation ------------------------------------------------
   // `ui-theme` re-adopts its durable built-in preference (here `dark`)
@@ -601,6 +737,9 @@ export function apply(ctx: ClientContext): void {
   };
 
   // ---- Settings scope (persistence) ---------------------------------------
+  // The local snapshot can be the only available settings source. Its managed
+  // image needs hydrating even when the remote scope never becomes ready.
+  void restoreDurableWallpaper(store.get());
   // DSH 0.2.x serves settings per profile entry id through `ctx.configForms`
   // (`configForms.get('desktop-themes')`); DSH 0.1.x binds the plugin-owned
   // namespace through `ctx.settingsScope`. Neither service is in the static
@@ -701,6 +840,33 @@ export function apply(ctx: ClientContext): void {
   }
 
   // ---- Settings section ----------------------------------------------------
+  let scheduleActive = true;
+  const applySchedule = () => {
+    if (!scheduleActive) return;
+    if (previewBase !== null) return;
+    const current = store.get();
+    const id = scheduledTheme(current, new Date().getHours());
+    if (id && id !== current.theme) commit({ ...current, theme: id, scene: '' }, true);
+  };
+  const scheduleTimer = setInterval(applySchedule, 60_000);
+  const cancelScheduleSubscription = store.subscribe(() => queueMicrotask(applySchedule));
+  document.addEventListener('visibilitychange', applySchedule);
+  applySchedule();
+  let layoutFace: { selectPanel?: (id: string | null) => void } | undefined;
+  ctx.inject(['layout'], child => { layoutFace = child.get('layout') as typeof layoutFace; });
+  const openStudio = () => layoutFace?.selectPanel?.('desktop-themes-studio');
+  if (slots !== undefined) {
+    slots.inject('main', () => {
+      slots.register({ name: 'main', key: 'desktop-themes-studio' }, () => createElement(Studio, {
+        store, commit, preview, cancelPreview, saveNow, close: () => {
+          layoutFace?.selectPanel?.(null);
+        },
+      }));
+    });
+    slots.inject('sidebar.panellist', () => {
+      slots.register({ name: 'sidebar.panellist', id: 'desktop-themes-studio', order: 30, label: () => '外观工作室' }, (props) => createElement(StudioIcon, { size: typeof props.size === 'number' ? props.size : 18 }));
+    });
+  }
   if (slots !== undefined) {
     slots.inject('settings.section', () => {
       slots.register(
@@ -717,6 +883,9 @@ export function apply(ctx: ClientContext): void {
             saveNotifier,
             saveNow,
             commit,
+            preview,
+            cancelPreview,
+            openStudio,
             chooseWallpaper,
             clearWallpaper,
             restoreWallpaper,
@@ -758,7 +927,17 @@ export function apply(ctx: ClientContext): void {
       if (rafCancel !== null) rafCancel();
       if (typeof cancelAnimationFrame === 'function' && reconcileRaf !== 0) cancelAnimationFrame(reconcileRaf);
       for (const timer of reconcileTimers) clearTimeout(timer);
+      if (readingObserver !== null) readingObserver.disconnect();
+      if (streamObserver !== null) streamObserver.disconnect();
+      if (activityTimer !== null) clearTimeout(activityTimer);
+      document.removeEventListener('input', onInput, true);
+      document.removeEventListener('compositionstart', onInput, true);
+      for (const query of environmentQueries) query.removeEventListener('change', onEnvironmentChange);
       effects.dispose();
+      scheduleActive = false;
+      clearInterval(scheduleTimer);
+      cancelScheduleSubscription();
+      document.removeEventListener('visibilitychange', applySchedule);
       disposeFontFaces();
       for (const url of wallpaperUrls.values()) URL.revokeObjectURL(url);
       wallpaperUrls.clear();

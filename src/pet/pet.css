@@ -324,8 +324,33 @@
 .dth-pet-menu-tabs {
   display: flex;
   gap: 2px;
-  padding: 6px 6px 0;
+  padding: 6px 34px 0 6px;
   border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+
+.dth-pet-menu-close {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dth-pet-menu-close:hover,
+.dth-pet-menu-close:focus-visible {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .dth-pet-tab {

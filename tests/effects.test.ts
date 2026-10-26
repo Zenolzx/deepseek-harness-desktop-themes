@@ -21,8 +21,9 @@ test('off density yields zero particles', () => {
 });
 
 test('explicit count is clamped to the tier cap', () => {
-  assert.equal(resolveParticleCount({ ...DEFAULT_EFFECTS, particleCount: 400 }, 'balanced', 1920 * 1080), 64);
-  assert.equal(resolveParticleCount({ ...DEFAULT_EFFECTS, particleCount: 90 }, 'quality', 1920 * 1080), 90);
+  const base = { ...DEFAULT_EFFECTS, density: 'low' as const };
+  assert.equal(resolveParticleCount({ ...base, particleCount: 400 }, 'balanced', 1920 * 1080), 64);
+  assert.equal(resolveParticleCount({ ...base, particleCount: 90 }, 'quality', 1920 * 1080), 90);
 });
 
 test('every effect preset resolves to metadata', () => {

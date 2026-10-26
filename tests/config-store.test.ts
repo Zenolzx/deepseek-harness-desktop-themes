@@ -22,7 +22,7 @@ test('explicit config snapshot round-trips and strips runtime wallpaper URLs', (
   const restored = loadConfigSnapshot(storage);
   assert.equal(restored?.font.uiPreset, 'lxgw-wenkai');
   assert.equal(restored?.wallpaper.path, '');
-  assert.equal(restored?.wallpaper.sourceId, 'builtin:obsidian-gold');
+  assert.equal(restored?.wallpaper.sourceId, 'builtin:mint-breeze');
 });
 
 test('invalid explicit config snapshots fail closed', () => {

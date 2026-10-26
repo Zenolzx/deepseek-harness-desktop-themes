@@ -34,7 +34,7 @@ async function produce() {
     format: 'cjs',
     platform: 'browser',
     jsx: 'automatic',
-    loader: { '.css': 'text', '.jpg': 'dataurl', '.jpeg': 'dataurl', '.png': 'dataurl' },
+    loader: { '.css': 'text', '.jpg': 'dataurl', '.jpeg': 'dataurl', '.png': 'dataurl', '.svg': 'dataurl' },
     external: ['react', 'react/jsx-runtime'],
     define: {
       __DTH_VERSION__: JSON.stringify(version),

@@ -64,7 +64,7 @@ test('schemaVersion 2 keeps user choices while upgrading old invisible effects',
   assert.equal(config.appearance.transparencyEnabled, false);
   assert.equal(config.wallpaper.enabled, true);
   assert.equal(config.glass.blurLevel, 'light');
-  assert.equal(config.schemaVersion, 3);
+  assert.equal(config.schemaVersion, 4);
 });
 
 test('v2 built-in low effect recipe migrates to visible theme defaults', () => {
@@ -75,17 +75,18 @@ test('v2 built-in low effect recipe migrates to visible theme defaults', () => {
       effects: { preset: 'gold-dust', density: 'low', particleSize: 1.5, particleOpacity: 0.42 },
     },
   });
-  assert.equal(config.effects.density, 'medium');
+  assert.equal(config.effects.density, 'low');
   assert.equal(config.effects.particleSize, 2.5);
-  assert.equal(config.effects.particleOpacity, 0.82);
-  assert.equal(config.effects.glowIntensity, 'standard');
+  assert.equal(config.effects.particleOpacity, 0.36);
+  assert.equal(config.effects.glowIntensity, 'soft');
 });
 
-test('current schemaVersion 3 envelope imports unchanged', () => {
+test('current schemaVersion 4 envelope imports unchanged', () => {
   const config = importConfig({
-    schemaVersion: 3,
-    config: { theme: 'sunset-flow', effects: { preset: 'fireflies', density: 'high', particleOpacity: 0.91 } },
+    schemaVersion: 4,
+    config: { scene: 'night', theme: 'sunset-flow', effects: { preset: 'fireflies', density: 'high', particleOpacity: 0.91 } },
   });
+  assert.equal(config.scene, 'night');
   assert.equal(config.theme, 'sunset-flow');
   assert.equal(config.effects.density, 'high');
   assert.equal(config.effects.particleOpacity, 0.91);
@@ -99,7 +100,7 @@ test('a bare config object (no envelope) is treated as schemaVersion 1', () => {
 
 test('garbage input never throws and returns a complete config', () => {
   const config = importConfig('not-json-at-all');
-  assert.equal(config.theme, 'obsidian-gold');
+  assert.equal(config.theme, 'mint-breeze');
   assert.ok(config.font);
-  assert.equal(config.schemaVersion, 3);
+  assert.equal(config.schemaVersion, 4);
 });

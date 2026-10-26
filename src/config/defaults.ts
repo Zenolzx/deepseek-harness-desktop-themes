@@ -14,6 +14,9 @@ import { SCHEMA_VERSION } from './types.ts';
  * Default configuration. Every value here must round-trip through the
  * schemastery schema (see `schema.ts`) so the resolved persisted section and
  * this object stay identical when nothing is overridden.
+ *
+ * 2.0 defaults to the restrained Paper workbench: opaque reading surfaces,
+ * almost no wallpaper and no particle motion.
  */
 
 export const DEFAULT_FONT: FontConfig = {
@@ -23,7 +26,7 @@ export const DEFAULT_FONT: FontConfig = {
   codeCustomFamily: '',
   fontSize: 14,
   codeFontSize: 13,
-  lineHeight: 1.6,
+  lineHeight: 1.75,
   fontWeight: 400,
   ligatures: true,
   smoothing: true,
@@ -31,49 +34,52 @@ export const DEFAULT_FONT: FontConfig = {
 
 export const DEFAULT_APPEARANCE: AppearanceConfig = {
   transparencyEnabled: true,
-  windowOpacity: 0.94,
-  sidebarOpacity: 0.94,
-  panelOpacity: 0.96,
-  inputOpacity: 0.98,
-  borderRadius: 'soft',
+  windowOpacity: 1,
+  sidebarOpacity: 1,
+  panelOpacity: 1,
+  inputOpacity: 1,
+  borderRadius: 'standard',
   contentWidth: 'standard',
   animationsEnabled: true,
   contentStyle: 'refined',
-  diffTint: 0.75,
+  diffTint: 0.6,
 };
 
 export const DEFAULT_WALLPAPER: WallpaperConfig = {
   enabled: true,
-  sourceId: 'builtin:obsidian-gold',
+  sourceId: 'builtin:mint-breeze',
   path: '',
-  name: 'Obsidian Gold · Built-in',
+  name: 'Paper · Built-in',
   fit: 'cover',
   positionX: 50,
   positionY: 50,
+  focusX: 50,
+  focusY: 42,
+  safeArea: 'balanced',
   scale: 1,
-  opacity: 0.58,
+  opacity: 0.32,
   blur: 0,
-  overlay: 0.46,
-  saturation: 0.9,
-  brightness: 0.9,
+  overlay: 0.42,
+  saturation: 0.95,
+  brightness: 1.02,
   tintEnabled: true,
-  tintStrength: 0.14,
+  tintStrength: 0.06,
 };
 
 export const DEFAULT_EFFECTS: EffectsConfig = {
-  enabled: true,
-  preset: 'gold-dust',
-  density: 'low',
+  enabled: false,
+  preset: 'none',
+  density: 'off',
   particleCount: 0,
-  particleSize: 2.5,
-  particleSpeed: 0.7,
-  particleOpacity: 0.45,
+  particleSize: 2,
+  particleSpeed: 0.4,
+  particleOpacity: 0.2,
   connectLines: false,
   mouseInteraction: false,
   parallax: false,
   cursorGlow: false,
-  glowIntensity: 'soft',
-  animationSpeed: 'gentle',
+  glowIntensity: 'off',
+  animationSpeed: 'still',
   autoThemeColors: true,
   particleColors: [],
   glowColors: [],
@@ -84,13 +90,13 @@ export const DEFAULT_PERFORMANCE: PerformanceConfig = {
 };
 
 export const DEFAULT_GLASS: GlassConfig = {
-  enabled: true,
-  blurLevel: 'light',
+  enabled: false,
+  blurLevel: 'off',
   strength: 0,
-  saturation: 1.05,
-  panelOpacity: 0.94,
-  borderHighlight: 0.36,
-  shadow: 0.2,
+  saturation: 1,
+  panelOpacity: 0.98,
+  borderHighlight: 0.28,
+  shadow: 0.1,
 };
 
 /** Default speech-bubble lines (one phrase per entry). */
@@ -106,7 +112,7 @@ export const DEFAULT_PET_SPEECH_LINES: string[] = [
 ];
 
 export const DEFAULT_PET: PetConfig = {
-  enabled: true,
+  enabled: false,
   style: 'moonfox',
   positionX: 89,
   positionY: 82,
@@ -118,9 +124,13 @@ export const DEFAULT_PET: PetConfig = {
   voiceStyle: 'playful',
 };
 
+export const DEFAULT_SCENE = 'workbench';
+
 export const DEFAULT_CONFIG: DesktopThemesConfig = {
+  workspace: { style: 'paper', mode: 'create', ambience: 'balanced', warmth: 0.7, depth: 0.65 },
   schemaVersion: SCHEMA_VERSION,
-  theme: 'obsidian-gold',
+  scene: DEFAULT_SCENE,
+  theme: 'mint-breeze',
   font: DEFAULT_FONT,
   appearance: DEFAULT_APPEARANCE,
   wallpaper: DEFAULT_WALLPAPER,
@@ -128,6 +138,7 @@ export const DEFAULT_CONFIG: DesktopThemesConfig = {
   effects: DEFAULT_EFFECTS,
   performance: DEFAULT_PERFORMANCE,
   customThemes: [],
+  themeSchedule: { enabled: false, family: '' },
   recentWallpapers: [],
   pet: DEFAULT_PET,
 };
@@ -137,16 +148,18 @@ export const MIN_OPACITY = 0.55;
 
 /** Recommended (safe) values the "restore recommended" action reverts to. */
 export const RECOMMENDED_OPACITY = {
-  windowOpacity: 0.94,
-  sidebarOpacity: 0.94,
-  panelOpacity: 0.96,
-  inputOpacity: 0.98,
+  windowOpacity: 1,
+  sidebarOpacity: 1,
+  panelOpacity: 1,
+  inputOpacity: 1,
 } as const;
 
 /** A deep, frozen copy of the defaults (safe to hand to callers). */
 export function createDefaultConfig(): DesktopThemesConfig {
   return {
+    workspace: { ...DEFAULT_CONFIG.workspace },
     schemaVersion: SCHEMA_VERSION,
+    scene: DEFAULT_SCENE,
     theme: DEFAULT_CONFIG.theme,
     font: { ...DEFAULT_FONT },
     appearance: { ...DEFAULT_APPEARANCE },
@@ -159,6 +172,7 @@ export function createDefaultConfig(): DesktopThemesConfig {
     },
     performance: { ...DEFAULT_PERFORMANCE },
     customThemes: [],
+    themeSchedule: { enabled: false, family: '' },
     recentWallpapers: [],
     pet: { ...DEFAULT_PET, speechLines: [...DEFAULT_PET.speechLines] },
   };

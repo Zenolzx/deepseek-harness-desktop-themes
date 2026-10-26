@@ -16,6 +16,7 @@ export function applyVisualModePreset(config: DesktopThemesConfig, mode: VisualM
   if (mode === 'immersive') {
     return {
       ...config,
+      scene: '',
       appearance: { ...config.appearance, ...recipe.appearance, contentStyle: 'refined', diffTint: 1 },
       wallpaper: { ...config.wallpaper, ...recipe.wallpaper },
       glass: { ...config.glass, ...recipe.glass },
@@ -24,17 +25,34 @@ export function applyVisualModePreset(config: DesktopThemesConfig, mode: VisualM
   }
   return {
     ...config,
+    scene: '',
     appearance: {
       ...config.appearance,
-      windowOpacity: 0.94,
-      sidebarOpacity: 0.94,
-      panelOpacity: 0.96,
-      inputOpacity: 0.98,
+      // Workbench is deliberately near-solid: the content is the subject and
+      // the wallpaper only remains as a faint spatial cue. Immersive keeps the
+      // theme's translucent recipe instead.
+      windowOpacity: 1,
+      sidebarOpacity: 1,
+      panelOpacity: 1,
+      inputOpacity: 1,
       contentStyle: 'refined',
       diffTint: 0.75,
     },
-    wallpaper: { ...config.wallpaper, opacity: 0.58, overlay: 0.46, tintStrength: 0.1 },
-    glass: { ...config.glass, blurLevel: 'light', panelOpacity: 0.94, shadow: 0.2 },
-    effects: { ...config.effects, density: 'low', particleOpacity: 0.45, glowIntensity: 'soft', connectLines: false },
+    wallpaper: {
+      ...config.wallpaper,
+      opacity: Math.min(config.wallpaper.opacity, 0.28),
+      overlay: Math.max(config.wallpaper.overlay, 0.56),
+      tintStrength: Math.min(config.wallpaper.tintStrength, 0.08),
+    },
+    glass: { ...config.glass, enabled: false, blurLevel: 'off' },
+    effects: {
+      ...config.effects,
+      density: 'low',
+      particleOpacity: Math.min(config.effects.particleOpacity, 0.22),
+      glowIntensity: 'off',
+      connectLines: false,
+      cursorGlow: false,
+      parallax: false,
+    },
   };
 }

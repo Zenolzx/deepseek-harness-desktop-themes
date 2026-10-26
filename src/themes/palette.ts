@@ -90,6 +90,15 @@ function invertedLabelInk(ink: string): string {
   return contrastRatio(ink, light) >= contrastRatio(ink, dark) ? light : dark;
 }
 
+/**
+ * Hairline alpha per scheme. A light theme can take more ink before a 0.5px
+ * line reads as a hard rule; a dark theme needs less white to stay a hairline.
+ */
+export const BORDER_ALPHA = {
+  light: { l1: 0.09, l2: 0.16, l3: 0.23, l4: 0.31, thin: 0.1 },
+  dark: { l1: 0.09, l2: 0.14, l3: 0.2, l4: 0.27, thin: 0.07 },
+} as const;
+
 /** Shiki's supported CSS-variable theme, tuned against each code surface. */
 export function buildSyntaxTokens(p: ThemePalette): Record<string, string> {
   const dark = p.colorScheme === 'dark';
@@ -121,6 +130,8 @@ export function buildSyntaxTokens(p: ThemePalette): Record<string, string> {
  */
 export function buildThemeTokens(p: ThemePalette): Record<string, string> {
   const ink = p.textPrimary;
+  const dark = p.colorScheme === 'dark';
+  const border = BORDER_ALPHA[dark ? 'dark' : 'light'];
   const tokens: Record<string, string> = {
     // Backgrounds.
     '--dsw-alias-bg-base': p.bgBase,
@@ -137,14 +148,24 @@ export function buildThemeTokens(p: ThemePalette): Record<string, string> {
     '--dsw-alias-bg-mask-photo': rgba('#000000', 0.88),
     '--dsw-alias-bg-mask-drop': rgba('#000000', 0.7),
 
-    // Borders.
-    '--dsw-alias-border-l1': rgba(ink, 0.06),
-    '--dsw-alias-border-l2': rgba(ink, 0.12),
-    '--dsw-alias-border-l2-darkmode-thin': rgba(ink, 0.06),
-    '--dsw-alias-border-l3': rgba(ink, 0.16),
-    '--dsw-alias-border-l4': rgba(ink, 0.2),
-    '--dsw-alias-border-inverted': rgba(ink, 0.06),
-    '--dsw-alias-border-inverted2': rgba(ink, 0.08),
+    // Borders. The Windows frame deliberately removes the sidebar hairline, so
+    // the chrome/canvas colour step carries the split; these tokens make cards,
+    // inputs and indicators legible on the now-distinct surfaces.
+    '--dsw-alias-border-l1': rgba(ink, border.l1),
+    '--dsw-alias-border-l2': rgba(ink, border.l2),
+    '--dsw-alias-border-l2-darkmode-thin': rgba(ink, border.thin),
+    '--dsw-alias-border-l3': rgba(ink, border.l3),
+    '--dsw-alias-border-l4': rgba(ink, border.l4),
+    '--dsw-alias-border-inverted': rgba(ink, border.l1),
+    '--dsw-alias-border-inverted2': rgba(ink, border.l2),
+
+    // Elevation. The product defaults assume its own neutral grey; on paper
+    // and coloured cinematic grounds a theme-coloured shadow reads as depth
+    // instead of a dirty halo.
+    '--dsw-elevation-soft': `0 1px 2px ${rgba(p.shadow, dark ? 0.34 : 0.18)}`,
+    '--dsw-elevation-panel': `0 8px 24px ${rgba(p.shadow, dark ? 0.46 : 0.12)}`,
+    '--dsw-elevation-prominent': `0 16px 40px ${rgba(p.shadow, dark ? 0.56 : 0.18)}`,
+    '--dsw-elevation-stroke-color': rgba(ink, border.l2),
 
     // Brand / accent.
     '--dsw-alias-brand-primary': p.accent,
@@ -157,7 +178,10 @@ export function buildThemeTokens(p: ThemePalette): Record<string, string> {
     '--dsw-alias-label-secondary': p.textSecondary,
     '--dsw-alias-label-tertiary': p.textMuted,
     '--dsw-alias-label-caption': p.textMuted,
-    '--dsw-alias-label-dimmed': mute(p.textPrimary, p.bgBase, 0.5),
+    // `label-dimmed` is still body-adjacent copy (timestamps, hints), so it
+    // reuses the muted tone rather than a 50% wash that fails AA on every
+    // light theme and on the brighter dark panels.
+    '--dsw-alias-label-dimmed': p.textMuted,
     '--dsw-alias-label-primary-bluish': p.textPrimary,
     '--dsw-alias-label-primary-dimmed': p.textSecondary,
     '--dsw-alias-label-primary-foreground': p.accentForeground,
@@ -253,6 +277,21 @@ export function buildThemeTokens(p: ThemePalette): Record<string, string> {
 }
 
 /**
+ * Lift a derived text tone until it clears AA on every surface the reader sees.
+ * Custom backgrounds and panels can differ a lot, so adjusting against the base
+ * alone is not enough: the raised panel is often the lighter (dark theme) or
+ * darker (light theme) surface where the same ink fails first.
+ */
+function readableTone(start: string, backgrounds: readonly string[], isDark: boolean): string {
+  let color = start;
+  for (let i = 0; i < 60; i += 1) {
+    if (backgrounds.every((background) => contrastRatio(color, background) >= 4.5)) return color;
+    color = adjustLightness(color, isDark ? 0.02 : -0.02);
+  }
+  return color;
+}
+
+/**
  * Build a full palette from a custom theme's seven colors plus the structural
  * base (success/warning/danger and surface relationships). Hover, borders and
  * secondary backgrounds are derived automatically; text contrast is enforced.
@@ -263,6 +302,7 @@ export function paletteFromCustomColors(colors: CustomThemeColors, base: ThemePa
   const bgSurface2 = isDark ? adjustLightness(bgSurface, -0.04) : adjustLightness(bgSurface, 0.02);
   const bgSurface3 = isDark ? adjustLightness(bgSurface, 0.06) : adjustLightness(bgSurface, 0.04);
   const textPrimary = colors.text;
+  const surfaces = [colors.background, bgSurface, bgSurface2, bgSurface3];
   const accentForeground = readableOn(colors.primary, colors.background, '#ffffff');
   const accentHover = deriveAccentHover(colors.primary, bgSurface);
   return {
@@ -274,8 +314,12 @@ export function paletteFromCustomColors(colors: CustomThemeColors, base: ThemePa
     bgSurface3,
     bgOverlay: bgSurface3,
     textPrimary,
-    textSecondary: mute(textPrimary, colors.background, 0.28),
-    textMuted: mute(textPrimary, colors.background, 0.5),
+    // Derived tones can land anywhere depending on the user's background and
+    // ink; lift them to the AA floor so a custom theme never ships unreadable
+    // secondary or muted copy. The primary text stays exactly as picked so the
+    // settings UI can still point at the failing pair and offer a fix.
+    textSecondary: readableTone(mute(textPrimary, colors.background, 0.28), surfaces, isDark),
+    textMuted: readableTone(mute(textPrimary, colors.background, 0.5), surfaces, isDark),
     accent: colors.primary,
     accentHover,
     accentForeground,

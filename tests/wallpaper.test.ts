@@ -55,3 +55,22 @@ test('each fit mode produces a distinct background-size/repeat', () => {
   assert.ok(cover.includes('background-size: cover'));
   assert.ok(tile.includes('background-repeat: repeat'));
 });
+
+test('safe area paints a theme-coloured bottom scrim and centred vignette', () => {
+  const css = buildWallpaperCss(
+    { ...DEFAULT_WALLPAPER, enabled: true, path: 'x', safeArea: 'strong', focusX: 30, focusY: 70 },
+    '#3366ff',
+    '#101820',
+  );
+  assert.ok(css.includes('linear-gradient(to top'));
+  assert.ok(css.includes('linear-gradient(to right'));
+  assert.ok(css.includes('radial-gradient(circle at 30% 70%'));
+  assert.ok(css.includes('rgba(16, 24, 32'));
+});
+
+test('safe area off keeps the wallpaper free of scrim layers', () => {
+  const css = buildWallpaperCss({ ...DEFAULT_WALLPAPER, enabled: true, path: 'x', safeArea: 'off' }, '#3366ff', '#101820');
+  assert.ok(!css.includes('linear-gradient(to top'));
+  assert.ok(!css.includes('radial-gradient(circle at'));
+  assert.ok(css.includes('background-image: url("x")'));
+});

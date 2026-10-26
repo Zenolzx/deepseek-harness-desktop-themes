@@ -12,7 +12,20 @@ import { SCHEMA_VERSION, type DesktopThemesConfig } from './types.ts';
 
 /** Serialize a config to a pretty-printed JSON document string. */
 export function exportConfigJson(config: DesktopThemesConfig): string {
-  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, config }, null, 2);
+  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, config: { ...config, wallpaper: { ...config.wallpaper, path: '' } } }, null, 2);
+}
+
+/** Download the current config as `dsh-desktop-themes.json` (backup action). */
+export function downloadConfigJson(config: DesktopThemesConfig): void {
+  if (typeof document === 'undefined') return;
+  const text = exportConfigJson(config);
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'dsh-desktop-themes.json';
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export type ImportResult = { ok: true; config: DesktopThemesConfig } | { ok: false; reason: 'parse' | 'schema' };

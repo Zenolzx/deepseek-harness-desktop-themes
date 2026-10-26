@@ -31,7 +31,7 @@ test('glass CSS degrades to a solid fill when blur is unsupported', () => {
 });
 
 test('glass CSS uses backdrop-filter when supported and enabled', () => {
-  const css = buildGlassCss(DEFAULT_GLASS, true);
+  const css = buildGlassCss({ ...DEFAULT_GLASS, enabled: true, blurLevel: 'light' }, true);
   assert.ok(css.includes('-webkit-backdrop-filter'));
   assert.ok(css.includes('backdrop-filter'));
 });
@@ -43,7 +43,7 @@ test('disabled glass still emits a readable solid surface', () => {
 });
 
 test('light-theme glass uses the palette surface and ink', () => {
-  const css = buildGlassCss(DEFAULT_GLASS, true, mintBreeze);
-  assert.ok(css.includes('rgba(220, 237, 230,'));
-  assert.ok(css.includes('rgba(23, 53, 45,'));
+  const css = buildGlassCss({ ...DEFAULT_GLASS, enabled: true, blurLevel: 'light' }, true, mintBreeze);
+  assert.ok(css.includes('rgba(224, 221, 215,'));
+  assert.ok(css.includes('rgba(27, 25, 22,'));
 });

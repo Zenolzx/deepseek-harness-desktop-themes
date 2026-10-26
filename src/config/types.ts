@@ -15,8 +15,18 @@ export type ThemeId =
   | 'sunset-flow'
   | 'obsidian-gold';
 
+/** Identifier of a built-in scene preset. */
+export type SceneId = 'workbench' | 'cinema' | 'deep-focus' | 'review' | 'night' | 'present';
+
 /** Wallpaper background fit modes. */
 export type WallpaperFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile';
+
+/**
+ * First-screen safety treatment painted over the wallpaper: a centred
+ * vignette plus bottom/left scrims that keep the composer and sidebar legible
+ * without hiding the image.
+ */
+export type WallpaperSafeArea = 'off' | 'balanced' | 'strong';
 
 /** Glassmorphism blur strength presets. */
 export type BlurLevel = 'off' | 'light' | 'standard' | 'strong';
@@ -135,6 +145,15 @@ export interface WallpaperConfig {
   positionX: number;
   /** Vertical anchor 0..100 (percent). */
   positionY: number;
+  /**
+   * Visual focus of the wallpaper (percent of the viewport). The scrim keeps
+   * this area clear while the edges fade into the theme background.
+   */
+  focusX: number;
+  /** Visual focus Y 0..100. */
+  focusY: number;
+  /** Vignette + composer/sidebar scrim strength. */
+  safeArea: WallpaperSafeArea;
   /** Zoom factor (0.5..3.0, 1 = native). */
   scale: number;
   /** Wallpaper opacity (0..1). */
@@ -226,6 +245,14 @@ export interface CustomThemeConfig {
   /** Built-in theme id used as the starting point. */
   base: string;
   colors: CustomThemeColors;
+  variantOf?: string;
+  variant?: string;
+  source?: string;
+  /** Imported syntax colors only; arbitrary CSS is never accepted. */
+  syntax?: Record<string, string>;
+  /** Imported ANSI palette, retained for format export and Studio preview. */
+  ansi?: string[];
+  states?: Record<string, string>;
 }
 
 export interface PetConfig {
@@ -252,8 +279,14 @@ export interface PetConfig {
 }
 
 export interface DesktopThemesConfig {
+  workspace: WorkspaceConfig;
   /** Persisted schema version (drives migration). */
   schemaVersion: number;
+  /**
+   * Active scene preset id (`workbench`, `cinema`, ...). Empty means the user
+   * has moved to a hand-tuned look since the last scene was applied.
+   */
+  scene: string;
   /** Selected theme id (a built-in id or a custom theme id). */
   theme: string;
   font: FontConfig;
@@ -263,10 +296,20 @@ export interface DesktopThemesConfig {
   effects: EffectsConfig;
   performance: PerformanceConfig;
   customThemes: CustomThemeConfig[];
+  /** Local-time family switching, opt-in; 07:00–19:00 uses the light variant. */
+  themeSchedule: { enabled: boolean; family: string };
   /** Recent wallpaper source ids (most recent first). */
   recentWallpapers: string[];
   /** Desktop pet configuration. */
   pet: PetConfig;
+}
+
+export interface WorkspaceConfig {
+  style: 'paper' | 'mineral' | 'nocturne';
+  mode: 'create' | 'focus' | 'review' | 'present';
+  ambience: 'quiet' | 'balanced' | 'immersive';
+  warmth: number;
+  depth: number;
 }
 
 /**
@@ -286,7 +329,7 @@ export const CONFIG_ENTRY_ID = 'desktop-themes';
 export type SettingsField = keyof Omit<DesktopThemesConfig, 'schemaVersion'>;
 
 /** Current persisted schema version. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Exported JSON envelope (the `schemaVersion` also lives inside the config). */
 export interface ExportedConfig {

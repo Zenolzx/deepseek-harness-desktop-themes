@@ -14,6 +14,7 @@ import { SCHEMA_VERSION } from './types.ts';
 import { DEFAULT_PET_SPEECH_LINES } from './defaults.ts';
 
 const FIT_MODES = ['cover', 'contain', 'stretch', 'center', 'tile'] as const;
+const SAFE_AREAS = ['off', 'balanced', 'strong'] as const;
 const BLUR_LEVELS = ['off', 'light', 'standard', 'strong'] as const;
 const PERFORMANCE_LEVELS = ['power-saver', 'balanced', 'quality'] as const;
 const ANIMATION_SPEEDS = ['still', 'gentle', 'standard', 'active'] as const;
@@ -36,6 +37,7 @@ const EFFECT_PRESETS = [
   'breathing',
   'custom',
 ] as const;
+const SCENE_IDS = ['workbench', 'cinema', 'deep-focus', 'review', 'night', 'present', ''] as const;
 
 /**
  * Mark a field volatile when the running schemastery supports it.
@@ -60,9 +62,9 @@ const fontSchema = z.object({
   uiFamily: z.string(),
   codeFamily: z.string(),
   chineseFamily: z.string(),
-  fontSize: z.number().min(10).max(24).step(1).default(14),
+  fontSize: z.number().min(12).max(24).step(1).default(14),
   codeFontSize: z.number().min(9).max(24).step(1).default(13),
-  lineHeight: z.number().min(1).max(2.5).step(0.05).default(1.6),
+  lineHeight: z.number().min(1).max(2.5).step(0.05).default(1.75),
   fontWeight: z.number().min(100).max(900).step(100).default(400),
   ligatures: z.boolean().default(true),
   smoothing: z.boolean().default(true),
@@ -70,49 +72,52 @@ const fontSchema = z.object({
 
 const appearanceSchema = z.object({
   transparencyEnabled: z.boolean().default(true),
-  windowOpacity: z.number().min(0.55).max(1).step(0.01).default(0.94),
-  sidebarOpacity: z.number().min(0.55).max(1).step(0.01).default(0.94),
-  panelOpacity: z.number().min(0.55).max(1).step(0.01).default(0.96),
-  inputOpacity: z.number().min(0.55).max(1).step(0.01).default(0.98),
-  borderRadius: z.union(RADIUS_LEVELS).default('soft'),
+  windowOpacity: z.number().min(0.55).max(1).step(0.01).default(1),
+  sidebarOpacity: z.number().min(0.55).max(1).step(0.01).default(1),
+  panelOpacity: z.number().min(0.55).max(1).step(0.01).default(1),
+  inputOpacity: z.number().min(0.55).max(1).step(0.01).default(1),
+  borderRadius: z.union(RADIUS_LEVELS).default('standard'),
   contentWidth: z.union(WIDTH_LEVELS).default('standard'),
   animationsEnabled: z.boolean().default(true),
   contentStyle: z.union(CONTENT_STYLES).default('refined'),
-  diffTint: z.number().min(0.25).max(2).step(0.25).default(0.75),
+  diffTint: z.number().min(0.25).max(2).step(0.05).default(0.6),
 });
 
 const wallpaperSchema = z.object({
   enabled: z.boolean().default(true),
-  sourceId: z.string().default('builtin:obsidian-gold'),
+  sourceId: z.string().default('builtin:mint-breeze'),
   path: z.string().default(''),
-  name: z.string().default('Obsidian Gold · Built-in'),
+  name: z.string().default('Paper · Built-in'),
   fit: z.union(FIT_MODES).default('cover'),
   positionX: z.number().min(0).max(100).step(1).default(50),
   positionY: z.number().min(0).max(100).step(1).default(50),
+  focusX: z.number().min(0).max(100).step(1).default(50),
+  focusY: z.number().min(0).max(100).step(1).default(42),
+  safeArea: z.union(SAFE_AREAS).default('balanced'),
   scale: z.number().min(0.5).max(3).step(0.05).default(1),
-  opacity: z.number().min(0).max(1).step(0.01).default(0.58),
+  opacity: z.number().min(0).max(1).step(0.01).default(0.32),
   blur: z.number().min(0).max(50).step(1).default(0),
-  overlay: z.number().min(0).max(1).step(0.01).default(0.46),
-  saturation: z.number().min(0).max(2).step(0.05).default(0.9),
-  brightness: z.number().min(0.5).max(1.5).step(0.05).default(0.9),
+  overlay: z.number().min(0).max(1).step(0.01).default(0.42),
+  saturation: z.number().min(0).max(2).step(0.05).default(0.95),
+  brightness: z.number().min(0.5).max(1.5).step(0.01).default(1.02),
   tintEnabled: z.boolean().default(true),
-  tintStrength: z.number().min(0).max(1).step(0.01).default(0.14),
+  tintStrength: z.number().min(0).max(1).step(0.01).default(0.06),
 });
 
 const effectsSchema = z.object({
-  enabled: z.boolean().default(true),
-  preset: z.union(EFFECT_PRESETS).default('gold-dust'),
-  density: z.union(PARTICLE_DENSITIES).default('low'),
+  enabled: z.boolean().default(false),
+  preset: z.union(EFFECT_PRESETS).default('none'),
+  density: z.union(PARTICLE_DENSITIES).default('off'),
   particleCount: z.number().min(0).max(400).step(1).default(0),
-  particleSize: z.number().min(1).max(6).step(0.5).default(2.5),
-  particleSpeed: z.number().min(0.2).max(3).step(0.1).default(0.7),
-  particleOpacity: z.number().min(0).max(1).step(0.01).default(0.45),
+  particleSize: z.number().min(1).max(6).step(0.5).default(2),
+  particleSpeed: z.number().min(0.2).max(3).step(0.1).default(0.4),
+  particleOpacity: z.number().min(0).max(1).step(0.01).default(0.2),
   connectLines: z.boolean().default(false),
   mouseInteraction: z.boolean().default(false),
   parallax: z.boolean().default(false),
   cursorGlow: z.boolean().default(false),
-  glowIntensity: z.union(LIGHT_INTENSITIES).default('soft'),
-  animationSpeed: z.union(ANIMATION_SPEEDS).default('gentle'),
+  glowIntensity: z.union(LIGHT_INTENSITIES).default('off'),
+  animationSpeed: z.union(ANIMATION_SPEEDS).default('still'),
   autoThemeColors: z.boolean().default(true),
   particleColors: z.array(z.string()).default([]),
   glowColors: z.array(z.string()).default([]),
@@ -123,13 +128,13 @@ const performanceSchema = z.object({
 });
 
 const glassSchema = z.object({
-  enabled: z.boolean().default(true),
-  blurLevel: z.union(BLUR_LEVELS).default('light'),
+  enabled: z.boolean().default(false),
+  blurLevel: z.union(BLUR_LEVELS).default('off'),
   strength: z.number().min(0).max(40).step(1).default(0),
-  saturation: z.number().min(0.5).max(2).step(0.05).default(1.05),
-  panelOpacity: z.number().min(0).max(1).step(0.01).default(0.94),
-  borderHighlight: z.number().min(0).max(1).step(0.01).default(0.36),
-  shadow: z.number().min(0).max(1).step(0.01).default(0.2),
+  saturation: z.number().min(0.5).max(2).step(0.05).default(1),
+  panelOpacity: z.number().min(0).max(1).step(0.01).default(0.98),
+  borderHighlight: z.number().min(0).max(1).step(0.01).default(0.28),
+  shadow: z.number().min(0).max(1).step(0.01).default(0.1),
 });
 
 const customThemeColorsSchema = z.object({
@@ -147,10 +152,16 @@ const customThemeSchema = z.object({
   name: z.string().default(''),
   base: z.string().default('quantum-blue'),
   colors: customThemeColorsSchema,
+  variantOf: z.string().default(''),
+  variant: z.string().default(''),
+  source: z.string().default(''),
+  syntax: z.dict(z.string()).default({}),
+  ansi: z.array(z.string()).default([]),
+  states: z.dict(z.string()).default({}),
 });
 
 const petSchema = z.object({
-  enabled: z.boolean().default(true),
+  enabled: z.boolean().default(false),
   style: z.union(PET_STYLES).default('moonfox'),
   positionX: z.number().min(0).max(100).step(1).default(89),
   positionY: z.number().min(0).max(100).step(1).default(82),
@@ -163,9 +174,18 @@ const petSchema = z.object({
 });
 
 export const DesktopThemesSchema = z.object({
+  workspace: volatile(z.object({
+    style: z.union(['paper','mineral','nocturne']).default('paper'),
+    mode: z.union(['create','focus','review','present']).default('create'),
+    ambience: z.union(['quiet','balanced','immersive']).default('balanced'),
+    warmth: z.number().min(0).max(1).step(0.01).default(0.7),
+    depth: z.number().min(0).max(1).step(0.01).default(0.65),
+  })),
   schemaVersion: volatile(z.number().min(1).max(SCHEMA_VERSION).default(SCHEMA_VERSION)),
+  // Built-in scene id or '' for a hand-tuned look.
+  scene: volatile(z.union(SCENE_IDS).default('workbench')),
   // Built-in or custom theme id (custom ids are `custom-<n>`).
-  theme: volatile(z.string().default('obsidian-gold')),
+  theme: volatile(z.string().default('mint-breeze')),
   font: volatile(fontSchema),
   appearance: volatile(appearanceSchema),
   wallpaper: volatile(wallpaperSchema),
@@ -173,6 +193,7 @@ export const DesktopThemesSchema = z.object({
   effects: volatile(effectsSchema),
   performance: volatile(performanceSchema),
   customThemes: volatile(z.array(customThemeSchema).default([])),
+  themeSchedule: volatile(z.object({ enabled: z.boolean().default(false), family: z.string().default('') })),
   recentWallpapers: volatile(z.array(z.string()).default([])),
   pet: volatile(petSchema),
 });

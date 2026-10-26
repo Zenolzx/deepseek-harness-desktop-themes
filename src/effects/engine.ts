@@ -70,9 +70,9 @@ const SPEED_FACTOR: Record<EffectsConfig['animationSpeed'], number> = {
 
 const GLOW_ALPHA: Record<EffectsConfig['glowIntensity'], number> = {
   off: 0,
-  soft: 0.16,
-  standard: 0.3,
-  bright: 0.46,
+  soft: 0.09,
+  standard: 0.17,
+  bright: 0.28,
 };
 
 /** Breathing animation period per animation-speed preset (seconds). */
@@ -114,6 +114,8 @@ export class EffectsEngine {
   private width = 0;
   private height = 0;
   private dpr = 1;
+  private performance: PerformanceLevel = 'balanced';
+  private motionScale = 1;
   private reducedMotion = false;
   private presetKind: EffectKind = 'none';
   private presetId: EffectPresetId = 'none';
@@ -126,6 +128,8 @@ export class EffectsEngine {
   private cursorEl: HTMLDivElement | null = null;
   private cursorRaf = 0;
   private frameIntervalMs = PERF_FRAME_INTERVAL.balanced;
+  private baseFrameIntervalMs = PERF_FRAME_INTERVAL.balanced;
+  private throttled = false;
   private lastFrameTime = 0;
   private pointerTrackingEnabled = false;
   private mouseInteractionEnabled = false;
@@ -173,7 +177,10 @@ export class EffectsEngine {
   update(input: EffectsRuntimeInput): void {
     if (this.disposed) return;
     const { effects, performance, colors, reducedMotion } = input;
+    this.stopLoop();
     this.reducedMotion = reducedMotion;
+    this.performance = performance;
+    this.motionScale = SPEED_FACTOR[effects.animationSpeed] * effects.particleSpeed;
     const meta = getEffectPreset(effects.preset);
     this.presetId = effects.preset;
     this.presetKind = meta.kind;
@@ -186,13 +193,14 @@ export class EffectsEngine {
     this.glowColors = colors.glows;
     this.glowAlphaBase = glowAlpha;
     this.animationSpeed = effects.animationSpeed;
-    this.cursorGlowEnabled = effects.cursorGlow;
-    this.mouseInteractionEnabled = effects.mouseInteraction;
+    this.cursorGlowEnabled = effects.enabled && effects.cursorGlow && !reducedMotion;
+    this.mouseInteractionEnabled = effects.enabled && effects.mouseInteraction && !reducedMotion;
     this.pointerTrackingEnabled = this.cursorGlowEnabled || this.mouseInteractionEnabled;
-    this.frameIntervalMs = PERF_FRAME_INTERVAL[performance];
+    this.baseFrameIntervalMs = PERF_FRAME_INTERVAL[performance];
+    this.frameIntervalMs = this.effectiveFrameInterval();
     this.connectLines = false;
 
-    if (!hasParticles && !hasGlow) {
+    if (!hasParticles && !hasGlow && !this.cursorGlowEnabled) {
       this.stopLoop();
       this.removeLayers();
       return;
@@ -227,6 +235,25 @@ export class EffectsEngine {
     this.removeLayers();
     for (const fn of this.cleanup) fn();
     this.cleanup = [];
+  }
+
+  /**
+   * Temporarily lower the redraw rate while the user is typing or a response
+   * is streaming in. The particle field is a background layer; at 15 fps it
+   * still reads as alive while the main thread stays free for text layout.
+   */
+  setThrottled(value: boolean): void {
+    if (this.throttled === value) return;
+    this.throttled = value;
+    this.frameIntervalMs = this.effectiveFrameInterval();
+    if (this.canvas !== null) {
+      this.canvas.dataset.throttled = value ? 'true' : 'false';
+      this.canvas.dataset.fps = String(Math.round(1000 / this.frameIntervalMs));
+    }
+  }
+
+  private effectiveFrameInterval(): number {
+    return this.throttled ? Math.max(this.baseFrameIntervalMs, 1000 / 15) : this.baseFrameIntervalMs;
   }
 
   // ---- internals ----------------------------------------------------------
@@ -268,13 +295,20 @@ export class EffectsEngine {
 
   private resize(performance?: PerformanceLevel): void {
     if (this.canvas === null) return;
-    const level = performance ?? 'balanced';
+    const level = performance ?? this.performance;
+    const previousWidth = this.width;
+    const previousHeight = this.height;
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.dpr = Math.min(window.devicePixelRatio || 1, PERF_DPR[level]);
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
     this.ctx?.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    for (const p of this.particles) {
+      if (previousWidth > 0) p.x *= this.width / previousWidth;
+      if (previousHeight > 0) p.y *= this.height / previousHeight;
+    }
+    this.draw(true, 0);
   }
 
   private seedParticles(target: number, effects: EffectsConfig, colors: EffectColors): void {
@@ -300,31 +334,33 @@ export class EffectsEngine {
     const baseSpeed = kind === 'bubbles' ? 0.4 : kind === 'petals' ? 0.6 : 0.3;
     const magnitude = baseSpeed * speed * (0.4 + Math.random() * 0.9);
     return {
-      x: prev !== null && this.reducedMotion ? prev.x : Math.random() * this.width,
-      y: prev !== null && this.reducedMotion ? prev.y : Math.random() * this.height,
+      x: prev !== null ? prev.x : Math.random() * this.width,
+      y: prev !== null ? prev.y : Math.random() * this.height,
       vx: Math.cos(angle) * magnitude,
-      vy: Math.sin(angle) * magnitude - (kind === 'bubbles' ? 0.25 : 0),
+      vy: Math.sin(angle) * magnitude - (kind === 'bubbles' ? 0.25 * speed : 0),
       size: (0.6 + Math.random() * 1.2) * effects.particleSize,
       color: baseColor,
       alpha: (0.4 + Math.random() * 0.6) * effects.particleOpacity,
       twinkle: 0.5 + Math.random() * 0.5,
-      phase: Math.random() * Math.PI * 2,
+      phase: prev?.phase ?? Math.random() * Math.PI * 2,
       kind,
-      drift: Math.random() * Math.PI * 2,
+      drift: prev?.drift ?? Math.random() * Math.PI * 2,
     };
   }
 
   private applyGlow(): void {
     if (this.glowEl === null) return;
-    const c = sample(this.glowColors, this.glowColors[0] ?? '#3D7EFF');
+    const c = this.glowColors[0] ?? '#7C86B8';
+    const secondary = this.glowColors[1] ?? c;
     this.glowEl.style.background = [
-      `radial-gradient(circle at 30% 20%, ${withAlpha(c, 1)} 0%, transparent 60%)`,
-      `radial-gradient(circle at 72% 62%, ${withAlpha(c, 0.7)} 0%, transparent 62%)`,
+      `radial-gradient(ellipse at 8% 12%, ${withAlpha(c, 1)} 0%, transparent 58%)`,
+      `radial-gradient(ellipse at 94% 82%, ${withAlpha(secondary, 0.65)} 0%, transparent 62%)`,
     ].join(', ');
     if (!this.glowEnabled) {
       this.glowEl.style.opacity = '0';
       this.glowEl.dataset.breathe = 'false';
     } else {
+      this.glowEl.style.opacity = '';
       const breathe = !this.reducedMotion && GLOW_PERIOD[this.animationSpeed] > 0;
       this.glowEl.style.setProperty('--dth-glow-base', String(this.glowAlphaBase));
       this.glowEl.style.setProperty('--dth-glow-min', String(this.glowAlphaBase * 0.55));
@@ -359,8 +395,8 @@ export class EffectsEngine {
   }
 
   private startLoop(): void {
-    if (this.running || this.disposed) return;
-    if (this.reducedMotion) {
+    if (this.running || this.disposed || this.canvas === null) return;
+    if (this.reducedMotion || this.motionScale === 0 || this.particles.length === 0) {
       // Render a single static frame and stop — no continuous animation.
       this.draw(true, 0);
       return;
@@ -373,7 +409,7 @@ export class EffectsEngine {
       const elapsed = now - this.lastFrameTime;
       if (elapsed >= this.frameIntervalMs) {
         this.lastFrameTime = now - (elapsed % this.frameIntervalMs);
-        this.draw(false, Math.min(0.05, elapsed / 1000));
+        this.draw(false, Math.min(0.1, elapsed / 1000));
       }
       this.raf = requestAnimationFrame(tick);
     };
@@ -400,13 +436,13 @@ export class EffectsEngine {
       this.paint(ctx, p);
     }
 
-    if (this.connectLines && !staticFrame) {
+    if (this.connectLines && !staticFrame && !this.throttled) {
       this.paintLines(ctx);
     }
   }
 
   private step(p: Particle, dt: number, mouseActive: boolean): void {
-    p.phase += dt * 0.8;
+    p.phase += dt * 0.8 * this.motionScale;
     if (mouseActive && this.pointer.x >= 0) {
       const dx = this.pointer.x - p.x;
       const dy = this.pointer.y - p.y;
@@ -419,10 +455,10 @@ export class EffectsEngine {
     }
     p.x += p.vx * dt * 60;
     p.y += p.vy * dt * 60;
-    p.drift += dt * 0.3;
+    p.drift += dt * 0.3 * this.motionScale;
 
     if (p.kind === 'ribbons') {
-      p.x += Math.sin(p.drift) * 0.4;
+      p.x += Math.sin(p.drift) * 0.4 * dt * 60 * this.motionScale;
     }
     if (p.kind === 'bubbles') {
       if (p.y < -10) {
@@ -447,7 +483,8 @@ export class EffectsEngine {
     const tw = p.kind === 'points' || p.kind === 'streaks' || p.kind === 'ribbons'
       ? p.twinkle * (0.6 + 0.4 * Math.sin(p.phase))
       : 1;
-    const alpha = Math.min(1, Math.max(0, p.alpha * tw));
+    const edge = Math.min(1, p.x / 48, p.y / 48, (this.width - p.x) / 48, (this.height - p.y) / 48);
+    const alpha = Math.min(1, Math.max(0, p.alpha * tw * edge));
     const solid = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`;
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -470,7 +507,7 @@ export class EffectsEngine {
       ctx.rotate(Math.atan2(p.vy, p.vx));
       ctx.strokeStyle = solid;
       ctx.shadowColor = solid;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 6;
       ctx.lineCap = 'round';
       ctx.lineWidth = Math.max(1.2, p.size * 0.7);
       ctx.beginPath();
@@ -490,7 +527,7 @@ export class EffectsEngine {
       ctx.fillStyle = solid;
       ctx.strokeStyle = solid;
       ctx.shadowColor = solid;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 3;
       ctx.beginPath();
       ctx.moveTo(0, -p.size * 1.35);
       ctx.lineTo(p.size * 0.55, 0);

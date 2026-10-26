@@ -1,0 +1,24 @@
+import { createRoot } from 'react-dom/client';
+import { useSyncExternalStore } from 'react';
+import { Studio, studioCss } from '../src/studio/Studio.tsx';
+import { createStore } from '../src/utils/store.ts';
+import { createDefaultConfig } from '../src/config/defaults.ts';
+import { THEMES } from '../src/themes/index.ts';
+import { buildWorkspaceCss } from '../src/workspace/recipes.ts';
+import { WorkspaceHome } from '../src/workspace/WorkspaceHome.tsx';
+import { draftFromTheme } from '../src/studio/model.ts';
+const store=createStore(createDefaultConfig());
+const theme=THEMES.find(t=>t.id===new URL(location.href).searchParams.get('theme')) ?? THEMES[2];
+store.set({...store.get(),theme:theme.id,workspace:{...store.get().workspace,style:theme.id==='mint-breeze'||theme.id==='sakura-mist'?'paper':theme.id==='obsidian-gold'||theme.id==='sunset-flow'?'nocturne':'mineral'}});
+const style=document.createElement('style');style.textContent=studioCss+'\nhtml,body,#root{margin:0;height:100%;}';document.head.append(style);
+for(const [key,value] of Object.entries(theme.definition.tokens))document.documentElement.style.setProperty(key,value);
+const dynamic=document.createElement('style');document.head.append(dynamic);
+const paint=()=>{const c=store.get(),p=THEMES.find(t=>t.id===c.theme)?.definition ?? THEMES.find(t=>t.id===draftFromTheme(c.theme,c.customThemes).base)?.definition;if(p)for(const [key,value] of Object.entries(p.tokens))document.documentElement.style.setProperty(key,value);dynamic.textContent=buildWorkspaceCss(c);};
+store.subscribe(paint);paint();
+(window as any).__studioStore=store;
+let base:ReturnType<typeof createDefaultConfig>|null=null;
+const commit=(next:ReturnType<typeof createDefaultConfig>)=>{base=null;store.set(next);localStorage.setItem('studio-committed',JSON.stringify(next));(window as any).__studioSaves=((window as any).__studioSaves??0)+1;};
+const preview=(next:ReturnType<typeof createDefaultConfig>)=>{base??=structuredClone(store.get());store.set(next);};
+const cancelPreview=()=>{if(base){const c=base;base=null;store.set(c);}};
+function Home(){const config=useSyncExternalStore(store.subscribe,store.get,store.get);return <div className="dth-studio"><WorkspaceHome config={config} commit={commit} preview={preview} cancelPreview={cancelPreview} openStudio={()=>location.href='/'}/></div>;}
+createRoot(document.getElementById('root')!).render(new URL(location.href).searchParams.has('home')?<Home/>:<Studio store={store} commit={commit} preview={preview} cancelPreview={cancelPreview}/>);

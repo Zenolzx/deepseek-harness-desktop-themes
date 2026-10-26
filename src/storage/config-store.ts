@@ -1,7 +1,8 @@
 import type { DesktopThemesConfig } from '../config/types.ts';
 import { coerceConfig } from '../config/validation.ts';
 
-export const LOCAL_CONFIG_KEY = 'dsh-desktop-themes:explicit-config:v3';
+export const LOCAL_CONFIG_KEY = 'dsh-desktop-themes:explicit-config:v4';
+const LEGACY_LOCAL_CONFIG_KEY = 'dsh-desktop-themes:explicit-config:v3';
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -41,7 +42,7 @@ export function saveConfigSnapshot(config: DesktopThemesConfig, storage: Storage
 export function loadConfigSnapshot(storage: StorageLike | null = browserStorage()): DesktopThemesConfig | null {
   if (storage === null) return null;
   try {
-    const raw = storage.getItem(LOCAL_CONFIG_KEY);
+    const raw = storage.getItem(LOCAL_CONFIG_KEY) ?? storage.getItem(LEGACY_LOCAL_CONFIG_KEY);
     if (raw === null) return null;
     const parsed = JSON.parse(raw) as Partial<SavedEnvelope>;
     if (typeof parsed.savedAt !== 'number' || parsed.config === undefined) return null;

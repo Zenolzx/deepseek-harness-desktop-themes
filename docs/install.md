@@ -2,6 +2,8 @@
 
 本插件是一个标准的 DSH **双面插件**（宿主 + 客户端），同时声明了 `dsh.bundle`。安装包自带 `cordis.patch.yml` 组合层，安装时自动注册插件行。
 
+> **2.0 起只保证 Desktop（Electron）体验。** 下文 `--profile web` 命令仅用于兼容旧环境或本地开发；桌面端请使用 `--profile desktop`（见“DSH 0.2.x 桌面端”一节）。
+
 ## 前置
 
 - Node.js ≥ 20（推荐 24）
@@ -21,7 +23,7 @@ npm run build
 **预构建 tgz 安装（推荐）：**
 
 ```bash
-dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.7.1.tgz
+dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-2.0.1.tgz
 ```
 
 也可安装本地源码目录，前提是已运行 `npm install` 与 `npm run build`。`dsh plugin` 会把 `file:` 的相对路径锚定到当前目录，然后转发给 profile 目录下的 pnpm。
@@ -44,7 +46,7 @@ dsh plugin --profile web add dsh-desktop-themes
 dsh web
 ```
 
-打开 `http://127.0.0.1:3080` → “设置” → “桌面外观”。
+打开桌面端 → “设置” → “桌面外观”。
 
 ## 本地开发更新（避免同版本缓存）
 
@@ -54,7 +56,7 @@ dsh web
 npm run deploy:web
 ```
 
-它会生成类似 `1.7.1-dev.20261019093000` 的唯一安装版本，安装到 `web` profile 后逐一比较 `lib/client.js` 与 `lib/index.js` 的 SHA-256，并在 Windows 上重启通过 `127.0.0.1:3080` 健康检查确认的 DSH 进程。设置页“桌面小人”分组底部会显示源码版本与本次构建编号。
+它会生成类似 `2.0.1-dev.20261019093000` 的唯一安装版本，安装到 `web` profile 后逐一比较 `lib/client.js` 与 `lib/index.js` 的 SHA-256，并在 Windows 上重启通过 `127.0.0.1:3080` 健康检查确认的 DSH 进程。设置页「高级 → 关于与诊断」会显示源码版本与本次构建编号。
 
 如需自行控制重启：
 
@@ -64,10 +66,10 @@ npm run deploy:web:no-restart
 
 验证：
 
-1. 主题选择器出现量子蓝 / 极光幻境 / 薄荷清风 / 樱雾 / 日落流光 / 黑金星穹 六套主题。
-2. 选择任一主题，界面 token 即时切换。
-3. 修改字体/透明度/壁纸/毛玻璃/粒子，实时预览。
-4. 刷新页面后配置仍保留（0.1.x 写入 `$DSH_HOME/settings.yaml` 的 `ui-desktop-themes` 分节；0.2.x 写入 profile 的 `cordis.patch.yml` 中 `desktop-themes` 条目的 `config`）；壁纸跨会话保留（IndexedDB）。
+1. 设置默认进入“场景”，看到克制工作台 / 电影感 / 深潜 / 评审 / 夜间 / 演示六张场景卡。
+2. 点击场景，配色、表面、壁纸、动效与阅读字号一次性切换；8 秒内可撤销。
+3. 进入“主题”可单独换配色；默认只换配色，不覆盖壁纸与粒子。
+4. 修改字体/透明度/壁纸/毛玻璃/粒子，实时预览；刷新后配置仍保留（0.2.x 写入 profile 的 `cordis.patch.yml` 中 `desktop-themes` 条目的 `config`）；壁纸跨会话保留（IndexedDB）。
 
 ## DSH 0.2.x 桌面端（Electron）
 
@@ -77,7 +79,7 @@ npm run deploy:web:no-restart
 - 或用桌面端自带的 CLI：
 
 ```bash
-"<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add file:D:/dsh-pack/dsh-desktop-themes-1.7.1.tgz
+"<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add file:D:/dsh-pack/dsh-desktop-themes-2.0.1.tgz
 ```
 
 安装后检查 `%USERPROFILE%\.dsh\profiles\desktop\package.json` 的 `dsh.profile.bundles`，确认出现 `dsh-desktop-themes`。不需要手动编辑 profile 的 `cordis.patch.yml`。

@@ -73,8 +73,21 @@ function backgroundSizeFor(fit: WallpaperConfig['fit']): { size: string; repeat:
   }
 }
 
-/** Build the wallpaper CSS (empty string when disabled or without a source). */
-export function buildWallpaperCss(wallpaper: WallpaperConfig, accent?: string): string {
+/** Scrim strengths per safe-area preset (alpha over the wallpaper). */
+const SAFE_AREA_SCRIM: Record<WallpaperConfig['safeArea'], { vignette: number; bottom: number; side: number }> = {
+  off: { vignette: 0, bottom: 0, side: 0 },
+  balanced: { vignette: 0.22, bottom: 0.66, side: 0.3 },
+  strong: { vignette: 0.34, bottom: 0.84, side: 0.46 },
+};
+
+/**
+ * Build the wallpaper CSS (empty string when disabled or without a source).
+ *
+ * `surface` is the active theme's base background. Painting the vignette and
+ * the bottom/left scrims in that colour (rather than pure black) keeps light
+ * themes light and dark themes dark, so contrast improves without a grey wash.
+ */
+export function buildWallpaperCss(wallpaper: WallpaperConfig, accent?: string, surface = '#000000'): string {
   if (!wallpaper.enabled || wallpaper.path.length === 0) return '';
   const { size, repeat } = backgroundSizeFor(wallpaper.fit);
   const url = `url("${escapeCssUrl(wallpaper.path)}")`;
@@ -91,6 +104,24 @@ export function buildWallpaperCss(wallpaper: WallpaperConfig, accent?: string): 
   const overlayLayers = wallpaper.tintEnabled && accent !== undefined
     ? [`${rgba(accent, wallpaper.tintStrength * 0.55)}`, `rgba(0, 0, 0, ${wallpaper.overlay})`]
     : [`rgba(0, 0, 0, ${wallpaper.overlay})`];
+
+  const scrim = SAFE_AREA_SCRIM[wallpaper.safeArea] ?? SAFE_AREA_SCRIM.balanced;
+  const safeLayers: string[] = [];
+  if (scrim.bottom > 0) {
+    safeLayers.push(
+      `linear-gradient(to top, ${rgba(surface, scrim.bottom)} 0%, ${rgba(surface, scrim.bottom * 0.55)} 16%, transparent 44%)`,
+    );
+  }
+  if (scrim.side > 0) {
+    safeLayers.push(
+      `linear-gradient(to right, ${rgba(surface, scrim.side)} 0%, ${rgba(surface, scrim.side * 0.55)} 15%, transparent 30%)`,
+    );
+  }
+  if (scrim.vignette > 0) {
+    safeLayers.push(
+      `radial-gradient(circle at ${wallpaper.focusX}% ${wallpaper.focusY}%, transparent 0%, transparent 46%, ${rgba(surface, scrim.vignette)} 100%)`,
+    );
+  }
 
   const rules = [
     'body::before {',
@@ -113,7 +144,7 @@ export function buildWallpaperCss(wallpaper: WallpaperConfig, accent?: string): 
     '  position: fixed;',
     '  inset: 0;',
     '  z-index: -3;',
-    '  background: ' + overlayLayers.join(', ') + ';',
+    '  background: ' + [...safeLayers, ...overlayLayers].join(', ') + ';',
     '  pointer-events: none;',
     '}',
   ].filter((line) => line !== '');

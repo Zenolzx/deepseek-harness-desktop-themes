@@ -41,6 +41,7 @@ import type {
   VoiceStyle,
   WallpaperConfig,
   WallpaperFit,
+  WallpaperSafeArea,
 } from './types.ts';
 import { SCHEMA_VERSION } from './types.ts';
 import { THEME_VISUAL_DEFAULTS } from '../themes/visual-defaults.ts';
@@ -53,7 +54,9 @@ const THEME_IDS: readonly string[] = [
   'sunset-flow',
   'obsidian-gold',
 ];
+const SCENE_IDS = ['workbench', 'cinema', 'deep-focus', 'review', 'night', 'present'] as const;
 const FIT_MODES: readonly WallpaperFit[] = ['cover', 'contain', 'stretch', 'center', 'tile'];
+const SAFE_AREAS: readonly WallpaperSafeArea[] = ['off', 'balanced', 'strong'];
 const BLUR_LEVELS: readonly BlurLevel[] = ['off', 'light', 'standard', 'strong'];
 const PERFORMANCE_LEVELS: readonly PerformanceLevel[] = ['power-saver', 'balanced', 'quality'];
 const ANIMATION_SPEEDS = ['still', 'gentle', 'standard', 'active'] as const;
@@ -173,7 +176,7 @@ function coerceFont(value: unknown): FontConfig {
     codePreset: asString(src.codePreset, DEFAULT_FONT.codePreset, 64),
     uiCustomFamily: asString(src.uiCustomFamily, '', 256),
     codeCustomFamily: asString(src.codeCustomFamily, '', 256),
-    fontSize: asNumber(src.fontSize, DEFAULT_FONT.fontSize, 10, 24, 1),
+    fontSize: asNumber(src.fontSize, DEFAULT_FONT.fontSize, 12, 24, 1),
     codeFontSize: asNumber(src.codeFontSize, DEFAULT_FONT.codeFontSize, 9, 24, 1),
     lineHeight: asNumber(src.lineHeight, DEFAULT_FONT.lineHeight, 1, 2.5, 0.05),
     fontWeight: asNumber(src.fontWeight, DEFAULT_FONT.fontWeight, 100, 900, 100),
@@ -194,7 +197,7 @@ function coerceAppearance(value: unknown): AppearanceConfig {
     contentWidth: asEnum(src.contentWidth, WIDTH_LEVELS, DEFAULT_APPEARANCE.contentWidth),
     animationsEnabled: asBoolean(src.animationsEnabled, DEFAULT_APPEARANCE.animationsEnabled),
     contentStyle: asEnum(src.contentStyle, CONTENT_STYLES, DEFAULT_APPEARANCE.contentStyle),
-    diffTint: asNumber(src.diffTint, DEFAULT_APPEARANCE.diffTint, 0.25, 2, 0.25),
+    diffTint: asNumber(src.diffTint, DEFAULT_APPEARANCE.diffTint, 0.25, 2, 0.05),
   };
 }
 
@@ -208,12 +211,15 @@ function coerceWallpaper(value: unknown): WallpaperConfig {
     fit: asEnum(src.fit, FIT_MODES, DEFAULT_WALLPAPER.fit),
     positionX: asNumber(src.positionX, DEFAULT_WALLPAPER.positionX, 0, 100, 1),
     positionY: asNumber(src.positionY, DEFAULT_WALLPAPER.positionY, 0, 100, 1),
+    focusX: asNumber(src.focusX, DEFAULT_WALLPAPER.focusX, 0, 100, 1),
+    focusY: asNumber(src.focusY, DEFAULT_WALLPAPER.focusY, 0, 100, 1),
+    safeArea: asEnum(src.safeArea, SAFE_AREAS, DEFAULT_WALLPAPER.safeArea),
     scale: asNumber(src.scale, DEFAULT_WALLPAPER.scale, 0.5, 3, 0.05),
     opacity: asNumber(src.opacity, DEFAULT_WALLPAPER.opacity, 0, 1, 0.01),
     blur: asNumber(src.blur, DEFAULT_WALLPAPER.blur, 0, 50, 1),
     overlay: asNumber(src.overlay, DEFAULT_WALLPAPER.overlay, 0, 1, 0.01),
     saturation: asNumber(src.saturation, DEFAULT_WALLPAPER.saturation, 0, 2, 0.05),
-    brightness: asNumber(src.brightness, DEFAULT_WALLPAPER.brightness, 0.5, 1.5, 0.05),
+    brightness: asNumber(src.brightness, DEFAULT_WALLPAPER.brightness, 0.5, 1.5, 0.01),
     tintEnabled: asBoolean(src.tintEnabled, DEFAULT_WALLPAPER.tintEnabled),
     tintStrength: asNumber(src.tintStrength, DEFAULT_WALLPAPER.tintStrength, 0, 1, 0.01),
   };
@@ -301,6 +307,15 @@ function coerceCustomTheme(value: unknown, index: number): CustomThemeConfig {
     name: asString(src.name, `Custom ${index + 1}`, 64),
     base: asString(src.base, 'quantum-blue', 64),
     colors: coerceCustomThemeColors(src.colors),
+    variantOf: asString(src.variantOf, '', 64),
+    variant: asString(src.variant, '', 32),
+    source: asString(src.source, '', 64),
+    syntax: Object.fromEntries(Object.entries(isObject(src.syntax) ? src.syntax : {}).filter(([key, value]) =>
+      ['constant', 'string', 'comment', 'keyword', 'parameter', 'function', 'string-expression', 'punctuation', 'link'].includes(key)
+      && typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)).map(([key, value]) => [key, String(value)])),
+    ansi: Array.isArray(src.ansi) ? src.ansi.filter((v): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)).slice(0,16) : [],
+    states: Object.fromEntries(Object.entries(isObject(src.states) ? src.states : {}).filter(([key, value]) =>
+      ['success','warning','danger'].includes(key) && typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)).map(([key,value])=>[key,String(value)])),
   };
 }
 
@@ -326,6 +341,11 @@ function coerceThemeId(value: unknown, customThemes: CustomThemeConfig[]): strin
   return DEFAULT_CONFIG.theme;
 }
 
+function coerceScene(value: unknown): string {
+  if (value === '') return '';
+  return typeof value === 'string' && (SCENE_IDS as readonly string[]).includes(value) ? value : DEFAULT_CONFIG.scene;
+}
+
 /**
  * Coerce an arbitrary value into a fully-formed config. Never throws. A
  * missing or non-object input yields the defaults; unknown keys are dropped.
@@ -340,8 +360,22 @@ export function coerceConfig(value: unknown): DesktopThemesConfig {
 
 function coerceCurrent(value: Record<string, unknown>): DesktopThemesConfig {
   const customThemes = coerceCustomThemes(value.customThemes);
+  const selectedTheme=coerceThemeId(value.theme,customThemes);
+  const base=customThemes.find(t=>t.id===selectedTheme)?.base ?? selectedTheme;
+  const fallbackStyle=['obsidian-gold','sunset-flow'].includes(base)?'nocturne':['quantum-blue','aurora-dream'].includes(base)?'mineral':'paper';
   return {
     schemaVersion: SCHEMA_VERSION,
+    workspace: (() => {
+      const w = isObject(value.workspace) ? value.workspace : {};
+      return {
+        style: asEnum(w.style, ['paper','mineral','nocturne'] as const, fallbackStyle),
+        mode: asEnum(w.mode, ['create','focus','review','present'] as const, 'create'),
+        ambience: asEnum(w.ambience, ['quiet','balanced','immersive'] as const, 'balanced'),
+        warmth: asNumber(w.warmth, 0.7, 0, 1, 0.01),
+        depth: asNumber(w.depth, 0.65, 0, 1, 0.01),
+      };
+    })(),
+    scene: coerceScene(value.scene),
     theme: coerceThemeId(value.theme, customThemes),
     font: coerceFont(value.font),
     appearance: coerceAppearance(value.appearance),
@@ -350,6 +384,10 @@ function coerceCurrent(value: Record<string, unknown>): DesktopThemesConfig {
     effects: coerceEffects(value.effects),
     performance: coercePerformance(value.performance),
     customThemes,
+    themeSchedule: {
+      enabled: isObject(value.themeSchedule) && value.themeSchedule.enabled === true,
+      family: isObject(value.themeSchedule) ? asString(value.themeSchedule.family, '', 64) : '',
+    },
     recentWallpapers: asStringArray(value.recentWallpapers, 16),
     pet: coercePet(value.pet),
   };
@@ -473,6 +511,18 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     if (wasLegacyRecipe) next.effects = { ...effects, ...recipe };
     next.schemaVersion = SCHEMA_VERSION;
     return next;
+  },
+  // v3 → v4: scenes. The six public theme ids keep their names in the config
+  // but receive new premium palettes; the scene is inferred from the old
+  // aesthetic so an existing user lands in the closest new family.
+  3: (config) => {
+    const theme = typeof config.theme === 'string' ? config.theme : DEFAULT_CONFIG.theme;
+    const cinema = theme === 'aurora-dream' || theme === 'sunset-flow' || theme === 'obsidian-gold';
+    const inferred = THEME_IDS.includes(theme) ? (cinema ? 'cinema' : 'workbench') : '';
+    // A partial v1-shaped document may already carry a scene (e.g. tests or a
+    // hand-written import): keep it instead of overwriting from the theme.
+    const scene = typeof config.scene === 'string' ? config.scene : inferred;
+    return { ...config, scene, schemaVersion: SCHEMA_VERSION };
   },
 };
 

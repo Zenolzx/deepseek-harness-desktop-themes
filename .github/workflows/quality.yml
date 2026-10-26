@@ -1,0 +1,38 @@
+name: Theme quality
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+jobs:
+  unit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run audit
+      - run: npm run build
+  studio-visual:
+    # Windows/Edge/font environment must match the reviewed local baselines.
+    # The runner needs Codex runtime dependencies (or DTH_RUNTIME_NODE_MODULES).
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, Windows]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - run: npm run test:studio-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio-visual-results
+          path: |
+            docs/screenshots/studio
+            tmp/studio-preview/verification.json
+            tmp/studio-preview/*-diff.png

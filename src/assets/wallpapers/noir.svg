@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="noir-base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0907"/>
+      <stop offset="0.55" stop-color="#060605"/>
+      <stop offset="1" stop-color="#030303"/>
+    </linearGradient>
+    <radialGradient id="noir-amber" cx="0.7" cy="0.42" r="0.5">
+      <stop offset="0" stop-color="#d6a756" stop-opacity="0.3"/>
+      <stop offset="0.42" stop-color="#b07a2a" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#b07a2a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="noir-vignette" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.45" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.72"/>
+    </radialGradient>
+    <filter id="noir-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="86"/>
+    </filter>
+    <filter id="noir-grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#noir-base)"/>
+  <ellipse cx="1120" cy="440" rx="560" ry="380" fill="#d6a756" opacity="0.12" filter="url(#noir-soft)"/>
+  <rect width="1600" height="1000" fill="url(#noir-amber)"/>
+  <g opacity="0.18" stroke="#f3ebdd" fill="none" stroke-width="1">
+    <path d="M0 520 C 360 470 640 560 980 510 S 1400 450 1600 500"/>
+    <path d="M0 570 C 380 520 660 610 1000 560 S 1420 500 1600 550"/>
+  </g>
+  <rect width="1600" height="1000" fill="url(#noir-vignette)"/>
+  <rect width="1600" height="1000" filter="url(#noir-grain)" opacity="0.06"/>
+</svg>

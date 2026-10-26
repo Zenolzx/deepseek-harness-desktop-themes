@@ -1,8 +1,10 @@
-﻿# DeepSeek Harness Desktop Themes
+# DeepSeek Harness Desktop Themes
 
-一个可安装、可配置、可卸载的 DeepSeek Harness 桌面外观插件。为长时间编程与对话场景提供现代、克制、内容优先的界面：**六套签名主题与专属壁纸、字体预设、光影与粒子动效、持久化自定义壁纸、毛玻璃、自定义配色主题**。
+**3.0 工作环境改版：[使用与覆盖范围](docs/workspace.md)**。纸感工作室、矿物工作台、夜幕工作室三套成品风格；创作/专注/评审/演示模式独立于配色，安静/平衡/沉浸独立控制装饰。
 
-- 平台：Web（DSH 的浏览器外壳）；宿主进程侧负责配置持久化
+面向 **DeepSeek Harness Desktop** 的可安装工作环境插件。默认以静态材质、环境色和稳定阅读面建立层次；原有六套配色与专业调色能力保留。工作室新增快速/专业编辑、本地壁纸取色、四类内容预览、20 秒宿主试用、精选社区配色、携带壁纸的风格包与 PNG 分享卡。新用户桌宠默认关闭。
+
+- 平台：**DSH Desktop（Electron）**；宿主进程侧负责配置持久化。Web profile 仍可加载同一构建，但 2.0 起只保证桌面端体验
 - 技术：TypeScript + React（客户端）+ Cordis（DSH 插件运行时）
 - 依赖零额外运行时库（仅 `@deepseek-ai/schemastery` 用于宿主侧 schema）
 
@@ -30,11 +32,15 @@
 
 ## 效果对比
 
-以下截图来自同一台机器、同一 DSH 新会话页面和相同侧边栏状态；右图展示黑金星穹、黑曜石月殿壁纸、金色星尘与月灵狐。当前开发版默认已进一步收敛壁纸与动效强度，截图尚未重拍。点击图片可查看原图。
+以下为 3.0 工作室和真实客户端入口的服务适配器验收截图。缩略图由实际预览组件截取；不代表宿主所有页面均已验收。
 
-| 无插件 | 启用插件 |
-|---|---|
-| [![无插件的 DSH 默认界面](docs/screenshots/without-plugin.png)](docs/screenshots/without-plugin.png) | [![启用 Desktop Themes 后的黑金主题、粒子壁纸与月灵狐](docs/screenshots/with-plugin.png)](docs/screenshots/with-plugin.png) |
+| 纸感工作室 | 夜幕工作室 |
+| --- | --- |
+| ![纸感](docs/screenshots/studio/mint-breeze-1280.png) | ![夜幕](docs/screenshots/studio/obsidian-gold-1920.png) |
+
+![风格与模式](docs/screenshots/studio/workspace-home-1280.png)
+
+旧版截图保留在 docs/screenshots/，不作为当前效果展示。
 
 ---
 
@@ -42,20 +48,25 @@
 
 | 分组 | 能力 |
 |---|---|
-| 主题风格 | 六套差异明显的主题：量子蓝、极光幻境、薄荷清风、樱雾、日落流光、黑金星穹；可视化主题卡片（背景/面板/文字/强调色/粒子缩略）+ 风格标签 |
+| 工作室与分享 | 快速/专业编辑、四类内容预览、20 秒临时试用；本地壁纸生成配色；完整风格包、PNG 预览卡、精选社区配色 |
+| 风格与模式 | **纸感 / 矿物 / 夜幕** 三套成品风格；创作/专注/评审/演示模式保留配色；安静/平衡/沉浸调整氛围。冷暖、空间层次可独立调整 |
+| 主题风格 | 六套高级配色：**Paper、Mist、Graphite**（工作台）与 **Arc、Dune、Noir**（电影感）；可视化主题卡片 + 可读性徽标；**默认只换配色**，可选「整套氛围」；按住空格预览、松手/Esc 取消、点击/回车应用；8 秒内可撤销 |
 | 字体排版 | 界面/代码字体独立下拉，预设 9+8 组，每个选项用对应字体渲染预览并显示“系统已安装 / 插件内 / 可下载 / 回退”；**7 款主流字体一键下载到插件内**（IndexedDB + FontFace，离线可用、不改系统）；中英文家族名自动别名匹配；字号、行高、字重、连字、平滑 |
-| 壁纸 | 六套主题各有专属内置壁纸；本地选择 + 拖放 + 最近使用 + 预览；填充/适应/居中/拉伸/平铺；缩放/透明度/模糊/亮度/饱和度/暗色遮罩/主题色混合；自定义壁纸 **IndexedDB 持久化** |
+| 壁纸 | 六套主题各有专属内置壁纸；本地选择 + 拖放 + 最近使用 + 预览；填充/适应/居中/拉伸/平铺；缩放/透明度/模糊/亮度/饱和度/暗色遮罩/主题色混合；**首屏安全区**（中心暗角 + 底部/侧边 scrim）；加载失败显示空状态；自定义壁纸 **IndexedDB 持久化** |
 | 桌面小人 | 月灵狐单角色；无底图分层轮廓，随机眨眼、颈部轴心摇头、尾根轴心摆尾、惯性回弹与持续呼吸；发声提供正常/温柔/欢快/俏皮/沉稳/机器人 6 种语调；可拖拽定位、单击打开快捷菜单 |
 | 光影效果 | 光影强度（关闭/柔和/标准/明亮）、光标跟随柔光、背景视差、柔光呼吸 |
 | 粒子效果 | 十种预设（科技数据流、星空、极光、萤火、气泡、樱花、金尘、呼吸…）；密度/数量/大小/速度/透明度/连线/鼠标互动/自动配色 |
 | 透明与毛玻璃 | 窗口/侧边栏/面板/输入区透明度（0.55 下限）；模糊强度（关闭/轻度/标准/强烈）+ 降级 |
 | 内容区样式 | Diff 行高亮采用「行号标记条 + 极淡行底色」，新增/删除按主题成功色与危险色派生；六套主题均支持「经典/焕新」切换和完整强度滑杆。代码块使用按主题校正对比度的 Shiki 语法色，设置页可同时预览代码与 diff。|
-| 阅读与氛围 | 新安装默认使用更清晰的工作台配方；「专注工作台 / 沉浸主题」一键切换阅读面透明度、壁纸与动效强度，保留用户上传的壁纸和桌宠设置。审查视图自动收敛光效并隐藏桌宠。|
-| 自定义配色 | 七色自定义主题；一键生成 7 种协调配色；对比度检测与一键修正；命名/保存/复制/删除；内置主题不可破坏、可复制后编辑 |
-| 动画与性能 | 动画速度（静止/舒缓/标准/活跃）；性能等级（省电/均衡/高质量） |
-| 导入导出重置 | JSON 导出/导入（schema 校验 + 版本迁移）；分组/当前主题/全部默认值重置 |
+| 阅读与氛围 | 模式与氛围独立选择；专注与评审自动收敛装饰，阅读面保持实心。|
+| 自定义配色 | 七色自定义主题；一键生成 7 种协调配色；**WCAG AA 可读性门禁**（正文 ≥4.5:1、界面 ≥3:1）+ 具体色对提示与一键修正；命名/保存/复制/删除；内置主题不可破坏、可复制后编辑 |
+| 动画与性能 | 动画速度（静止/舒缓/标准/活跃）；性能等级（省电/均衡/高质量）；输入/流式输出时粒子自动降到 15 FPS 并跳过连线 |
+| 设置体验 | 5 组导航（外观/进阶效果/字体/伙伴/高级）；搜索设置并跳转；自动保存状态；每个控件可单独恢复默认；导入导出与诊断 |
+| 导入导出 | JSON 导出/导入（schema 校验 + 版本迁移）；顶部“导出备份”；分组/当前主题/全部默认值重置 |
+| 可访问性 | `prefers-reduced-motion`、`prefers-reduced-transparency` 友好；Toggle 使用本地化开/关；tablist 支持方向键/Home/End；桌宠菜单有焦点陷阱与 Esc 归还焦点 |
+| 表面层级 | 左右栏 chrome 与中间画布分离；面板/输入/浮层按明度分层；边框、阴影与 `--dsw-elevation-*` 随主题重算，`npm run audit:surfaces` 门禁 |
 
-所有设置在“设置 → 桌面外观”页实时预览，并通过宿主设置存储 + IndexedDB 可靠持久化。默认组合为**黑金星穹 + 黑曜石月殿壁纸 + 月灵狐桌宠**；桌宠显示在右下角，可拖拽移动、单击唤出快捷菜单，位置与偏好随配置持久化。
+设置页即时应用并自动保存，工作室编辑先留在草稿、顶部保存后应用。默认 Paper 纸感环境使用静态材质与轻环境色，不启动持续装饰动画。桌宠为可选伙伴，已有用户开关保留。完整风格包包含壁纸资源，全部设置 JSON 备份不包含图片字节。
 
 ---
 
@@ -69,6 +80,9 @@ npm install
 npm run build        # 生成 lib/index.js 与 lib/client.js
 npm run typecheck    # 严格类型检查（无 emit）
 npm test             # 单元测试
+npm run audit:contrast   # WCAG AA 对比度门禁（六套内置主题）
+npm run audit:surfaces   # 左右栏 / 画布 / 面板 / 边框层级门禁
+npm run audit            # 两个门禁一起跑
 npm run bench        # 可复现的性能微基准
 ```
 
@@ -80,8 +94,11 @@ npm run bench        # 可复现的性能微基准
 生成可安装包：
 
 ```bash
-npm pack            # 产出 dsh-desktop-themes-1.8.0.tgz
+npm pack            # 产出 dsh-desktop-themes-3.0.0.tgz
+npm run install:desktop   # 直接把 lib/*、package.json 写入 ~/.dsh/profiles/desktop
 ```
+
+> 2.0 起只保证桌面端。`install:desktop` 会复制构建产物并校验哈希，之后仍需**完全退出并重新打开 DSH Desktop**，宿主 schema 与客户端 bundle 才会重新加载。
 
 ---
 
@@ -102,9 +119,9 @@ npm pack            # 产出 dsh-desktop-themes-1.8.0.tgz
    - https://github.com/lxgw/LxgwWenKai/releases/latest
    - https://github.com/subframe7536/maple-font/releases/latest
    优先使用静态 TTF，安装到当前用户字体目录；安装后确认系统可以识别 “LXGW WenKai” 和 “Maple Mono”。
-5. 确认 DeepSeek Harness 的 web profile 已初始化。插件包自带组合层，不要手动向 profile 的 cordis.patch.yml 添加 desktop-themes 行；若已有旧版手工行，先备份并移除该行。
-6. 在仓库目录运行 npm run deploy:web 安装最新构建。若当前系统不能由脚本自动重启，则安全重启 dsh web。
-7. 验证 dsh plugin --profile web list 能看到插件、http://127.0.0.1:3080 可访问，并确认“设置 → 桌面外观”出现。然后将界面字体设为 LXGW WenKai、代码字体设为 Maple Mono；如果不能自动操作界面，明确告诉我最后两次点击的位置。
+5. 确认 DeepSeek Harness Desktop 的 desktop profile 已初始化。插件包自带组合层，不要手动向 profile 的 cordis.patch.yml 添加 desktop-themes 行；若已有旧版手工行，先备份并移除该行。
+6. 在仓库目录运行 npm run build && npm run install:desktop，把构建产物写入 desktop profile；随后完全退出并重新打开 DSH Desktop。
+7. 验证桌面端“设置 → 桌面外观”出现，默认进入“风格与模式”并看到 Paper 工作台；然后将界面字体设为 LXGW WenKai、代码字体设为 Maple Mono；如果不能自动操作界面，明确告诉我最后两次点击的位置。
 8. 最后汇报仓库路径、插件版本、构建/测试结果、字体安装状态、备份文件位置和访问地址。不得输出或上传本机密钥、照片及其他隐私文件。
 ```
 
@@ -120,29 +137,27 @@ npm pack            # 产出 dsh-desktop-themes-1.8.0.tgz
 
 ```bash
 # 安装构建好的 tgz（推荐，桌面端插件管理器也可选择此文件）
-dsh plugin --profile web add file:D:/path/to/dsh-desktop-themes-1.8.0.tgz
+dsh plugin --profile desktop add file:D:/path/to/dsh-desktop-themes-3.0.0.tgz
 
 # 或从 npm 安装（若已发布）
-dsh plugin --profile web add dsh-desktop-themes
+dsh plugin --profile desktop add dsh-desktop-themes
 ```
 
 从 GitHub 源码地址直接安装时，包的 `prepare` 脚本需要在安装端获准执行构建；若插件管理器不支持允许构建脚本，请使用预构建的 `.tgz` 包。旧版手工写入 profile `cordis.patch.yml` 的 `desktop-themes` 行应在升级前备份并移除，避免重复挂载。
 
 ### 2. 重启
 
-```bash
-dsh web
-```
+完全退出 DSH Desktop，再重新打开（不是刷新页面）。
 
-重启后打开“设置 → 桌面外观”。完整说明见 [`docs/install.md`](docs/install.md)。
+重启后打开“设置 → 桌面外观”，默认进入“风格与模式”。完整说明见 [`docs/install.md`](docs/install.md)。
 
 ### 本地开发更新（推荐）
 
 ```bash
-npm run deploy:web
+npm run build && npm run install:desktop
 ```
 
-该命令会构建带时间戳的唯一开发包、安装到 `web` profile、比较安装前后产物哈希并重启 DSH，可避免 `file:` 同版本缓存造成“代码已改但界面没变化”。不想自动重启时使用 `npm run deploy:web:no-restart`。
+该命令直接复制 `lib/client.js`、`lib/index.js` 与 `package.json`，并逐文件校验 SHA-256，避免 `file:` 同版本缓存造成“代码已改但界面没变化”。完成后仍需重启桌面端。旧 Web 开发流程 `npm run deploy:web` 仅为兼容保留。
 
 ---
 
@@ -152,12 +167,11 @@ npm run deploy:web
 
 ```bash
 # 1. 移除插件及其组合层
-dsh plugin --profile web remove dsh-desktop-themes
-# 2. 重启
-dsh web
+dsh plugin --profile desktop remove dsh-desktop-themes
+# 2. 完全退出并重新打开 DSH Desktop
 ```
 
-如需同时清空设置，删除 `$DSH_HOME/settings.yaml` 的 `ui-desktop-themes:` 分节，在浏览器中清理 `dsh-desktop-themes` 的 IndexedDB（壁纸 blob 所在处），并删除 localStorage 中的 `dsh-desktop-themes:explicit-config:v3`。
+如需同时清空设置，删除 `$DSH_HOME/settings.yaml` 的 `ui-desktop-themes:` 分节，在桌面端清理 `dsh-desktop-themes` 的 IndexedDB（壁纸 blob 所在处），并删除 localStorage 中的 `dsh-desktop-themes:explicit-config:v4`（旧 v3 key 也会被读取）。
 
 ---
 
@@ -165,8 +179,8 @@ dsh web
 
 **保存位置**（按优先级）：
 
-1. 点击“保存全部设置” → 同步写入宿主正式设置 API，并写一份不含图片字节的浏览器本地配置备份；刷新时优先恢复明确保存的版本。
-2. 普通设置 → `$DSH_HOME/settings.yaml` 的 `ui-desktop-themes` 命名空间（schemastery 校验，日常调整仍会 350ms 防抖自动写入）。
+1. 设置变更 → 350ms 防抖写入宿主设置 API，同时写一份不含图片字节的本地快照；顶部显示“保存中 / 已自动保存 / 保存失败（重试）”。刷新时优先恢复本地快照。
+2. 顶部“导出备份”或高级页“导出设置 JSON” → 下载 `dsh-desktop-themes.json`，用于跨机器迁移；不再需要手动“保存全部设置”。
 3. 自定义壁纸字节 → IndexedDB 数据库 `dsh-desktop-themes`（存 Blob，**不把 Base64 塞进 localStorage**）；六张内置主题壁纸随插件压缩发布，配置只保存 `builtin:<theme-id>`。
 
 **可靠性**：
@@ -176,9 +190,9 @@ dsh web
 - 写入采用防抖（350ms），滑块连续拖动不会高频写盘。
 - 初始化先读配置再渲染外观，避免默认主题闪烁；刷新不重写默认设置。
 - 数据损坏时自动回退默认值（`coerceConfig` 永不抛异常）。
-- 设置页顶部始终提供“保存全部设置”，成功后显示低干扰“已保存”状态；宿主存储暂不可用时仍可依赖本地备份恢复。
+- 设置页支持逐控件“恢复默认”、分组重置与全部重置；主题切换后可撤销 8 秒。
 
-导入/导出为 JSON（`dsh-desktop-themes.json`），支持“恢复当前主题默认值 / 恢复分组默认值 / 恢复全部默认值”；全部重置会恢复黑金星穹、内置黑金壁纸与月灵狐。
+导入/导出为 JSON（`dsh-desktop-themes.json`），支持“恢复当前主题默认值 / 恢复分组默认值 / 恢复全部默认值”；全部重置会恢复 Paper 纸感工作台、内置矢量壁纸，并关闭可选桌宠。
 
 导出/导入详情见 [`docs/configuration.md`](docs/configuration.md)。
 
@@ -188,7 +202,7 @@ dsh web
 
 ### 一键下载（推荐）
 
-设置 → 桌面外观 → 字体排版 中，7 款字体带有「下载到插件」按钮：
+设置 → 桌面外观 → 字体 → 界面/代码字体 中，7 款字体带有「下载到插件」按钮：
 
 | 字体 | 用途 | 体积 | 许可 |
 |---|---|---|---|
@@ -239,7 +253,7 @@ dsh web
 | 均衡 `balanced`（默认） | 36–64 | 30 FPS；Canvas DPR 上限 1.25 |
 | 高质量 `quality` | 72–112 | 60 FPS；Canvas DPR 上限 1.75，可能增加 GPU 占用 |
 
-动效引擎使用 `requestAnimationFrame`（无 `setInterval`）；页面/窗口不可见时暂停；`prefers-reduced-motion` 下渲染静态帧并停止循环；窗口尺寸变化防抖（150ms）；粒子数量按窗口面积与性能档位自动调整；主题/特效切换复用同一 Canvas，不重复创建；禁用插件时销毁 Canvas、事件监听与动画循环。详见 [`docs/performance.md`](docs/performance.md)。
+动效引擎使用 `requestAnimationFrame`（无 `setInterval`）；页面/窗口不可见时暂停；`prefers-reduced-motion` 下渲染静态帧并停止循环；窗口尺寸变化防抖（150ms）；粒子数量按窗口面积与性能档位自动调整；主题/特效切换复用同一 Canvas，不重复创建；**输入或流式输出期间降到约 15 FPS 并跳过连线**；`prefers-reduced-transparency` 下自动关闭毛玻璃与半透明 token；禁用插件时销毁 Canvas、事件监听与动画循环。详见 [`docs/performance.md`](docs/performance.md)。
 
 ---
 
@@ -252,7 +266,7 @@ npm run typecheck && npm test && npm run build
 结果（当前环境 Node 24 / Windows）：
 
 - `tsc --noEmit`：0 错误
-- 单元测试：**115 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v2→v3 迁移、六主题粒子配方、专属桌宠动作、六种语调与形象声线、主题 token、自定义主题、字体别名/回退/下载目录、壁纸校验、性能档位、导入导出与样式清理）
+- 单元测试：**164 通过 / 0 失败**（覆盖显式保存、本地恢复、默认值、非法回退、v1→v4 迁移、六套新配色、六种场景、表面层级、主题切换保留资产、字体别名/下载目录、对比度门禁、壁纸安全区、性能档位、导入导出与样式清理）
 - 构建：`lib/index.js` + `lib/client.js` 成功产出
 
 ---
@@ -287,7 +301,8 @@ dsh-desktop-themes/
 │   │   └── styles.css         # 设置面板 + 特效层静态样式
 │   ├── pet/                   # 桌面小人（SVG 角色 + 快捷菜单 + 拖拽）
 │   ├── config/                # 类型 / 默认值 / schema / 校验迁移 / 导入导出
-│   ├── themes/                # 六套主题 + token 构建器 + 自定义主题派生
+│   ├── themes/                # 六套双审美主题 + token + 对比度门禁 + 切换策略
+│   ├── scenes/                # 六种场景预设（工作台 / 电影感 / 深潜 / 评审 / 夜间 / 演示）
 │   ├── fonts/
 │   │   ├── presets.ts         # 字体预设 + 别名 + 回退栈 + 下载目录
 │   │   ├── runtime.ts         # 下载 / FontFace 注册 / 已安装状态
@@ -300,7 +315,7 @@ dsh-desktop-themes/
 │   │   └── font-store.ts      # IndexedDB 字体 Blob 存储（独立数据库）
 │   ├── settings/              # 设置页 / 控件 / 预览 / 双语
 │   └── utils/                 # 颜色 / store / 样式控制器
-├── tests/                     # 115 个单元测试
+├── tests/                     # 143 个单元测试
 ├── ROADMAP.md                 # 2.0 分阶段路线图
 └── docs/                      # install / configuration / fonts / platform / performance
 ```
@@ -309,10 +324,11 @@ dsh-desktop-themes/
 
 ## 分阶段路线图
 
-下一阶段的完整规划见 [`ROADMAP.md`](ROADMAP.md)：1.9 信任与可读性（对比度门禁、切换撤销、首屏收敛）→ 2.0 场景系统与分享 → 2.1 外观工作室与主题导入 → 2.2 氛围引擎 → 3.0 桌面伙伴与社区。
+下一阶段的完整规划见 [`ROADMAP.md`](ROADMAP.md)：2.0 双审美与场景（已完成）→ 2.1 分享/命令面板/外观工作室 → 2.2 氛围引擎与终端 → 3.0 桌面伙伴与社区。
 
-当前建议先做三件 P0：
+2.0.0 / 2.0.1 已完成：
 
-1. 对比度门禁 + 浅色主题修正；
-2. 主题切换拆成「只换配色 / 整套氛围」并支持撤销；
-3. 首屏壁纸安全区 + 输入框局部 scrim。
+1. 六套新高级配色：Paper / Mist / Graphite（工作台）与 Arc / Dune / Noir（电影感），六张矢量壁纸；
+2. 六种场景：克制工作台、电影感、深潜、评审、夜间、演示；支持试穿与 8 秒撤销；
+3. schema v4 + 旧配置自动迁移；默认切到 Paper 工作台，阅读面接近实心；
+4. 2.0.1 表面层级：左右 chrome 与画布分离、面板/输入分层、边框/阴影重算，新增表面审计门禁。

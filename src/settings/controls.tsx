@@ -4,8 +4,24 @@
  * focus outline, and never encodes state with color alone.
  */
 
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { quoteFont } from '../fonts/presets.ts';
+
+/** Localized common labels, provided by the panel/pet roots. */
+export interface UiText {
+  on: string;
+  off: string;
+  reset: string;
+}
+
+export const UiTextContext = createContext<UiText>({ on: 'On', off: 'Off', reset: 'Restore default' });
+
+/**
+ * Per-control reset handlers keyed by control id. Keeping this in context means
+ * every Field gets a reset affordance without threading a callback through
+ * every call site: the panel owns the config and registers one handler per id.
+ */
+export const SettingsResetContext = createContext<Record<string, () => void>>({});
 
 export interface ThemeCardModel {
   id: string;
@@ -13,6 +29,7 @@ export interface ThemeCardModel {
   description: string;
   tag: string;
   wallpaper?: string;
+  readability?: 'AAA' | 'AA' | 'fail';
   colors: {
     bg: string;
     panel: string;
@@ -37,11 +54,21 @@ export function Section(props: { title: string; children: ReactNode; actions?: R
 }
 
 export function Field(props: { label: string; hint?: string; children: ReactNode; id: string }) {
+  const text = useContext(UiTextContext);
+  const resets = useContext(SettingsResetContext);
+  const reset = resets[props.id];
   return (
-    <div className="dth-field">
+    <div className="dth-field" data-dth-setting={props.id}>
       <div className="dth-field-label">
         <label htmlFor={props.id}>{props.label}</label>
-        {props.hint !== undefined ? <span className="dth-field-hint">{props.hint}</span> : null}
+        <span className="dth-field-label-row">
+          {props.hint !== undefined ? <span className="dth-field-hint">{props.hint}</span> : null}
+          {reset !== undefined ? (
+            <button type="button" className="dth-reset" title={text.reset} aria-label={`${text.reset}: ${props.label}`} onClick={reset}>
+              ↺
+            </button>
+          ) : null}
+        </span>
       </div>
       {props.children}
     </div>
@@ -49,11 +76,9 @@ export function Field(props: { label: string; hint?: string; children: ReactNode
 }
 
 export function Toggle(props: { id: string; label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  const text = useContext(UiTextContext);
   return (
-    <div className="dth-field">
-      <div className="dth-field-label">
-        <label htmlFor={props.id}>{props.label}</label>
-      </div>
+    <Field id={props.id} label={props.label}>
       <button
         id={props.id}
         type="button"
@@ -64,9 +89,9 @@ export function Toggle(props: { id: string; label: string; checked: boolean; onC
         disabled={props.disabled}
       >
         <span className="dth-toggle-knob" />
-        <span className="dth-toggle-text">{props.checked ? 'On' : 'Off'}</span>
+        <span className="dth-toggle-text">{props.checked ? text.on : text.off}</span>
       </button>
-    </div>
+    </Field>
   );
 }
 
@@ -272,14 +297,40 @@ export function Button(props: { onClick: () => void; children: ReactNode; varian
   );
 }
 
-export function ThemeCard(props: { theme: ThemeCardModel; selected: boolean; onSelect: () => void }) {
+export function ThemeCard(props: {
+  theme: ThemeCardModel;
+  selected: boolean;
+  previewing?: boolean;
+  onSelect: () => void;
+  /** Hold-to-preview: called on Space keydown. */
+  onPreviewStart?: () => void;
+  /** Release/Esc/blur cancels the preview without committing. */
+  onPreviewEnd?: () => void;
+}) {
   const c = props.theme.colors;
+  const grade = props.theme.readability;
   return (
     <button
       type="button"
-      className={`dth-theme-card${props.selected ? ' is-selected' : ''}`}
+      className={`dth-theme-card${props.selected ? ' is-selected' : ''}${props.previewing === true ? ' is-previewing' : ''}`}
       aria-pressed={props.selected}
       onClick={props.onSelect}
+      onKeyDown={(event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          event.preventDefault();
+          if (!event.repeat) props.onPreviewStart?.();
+        } else if (event.key === 'Enter') {
+          event.preventDefault();
+          props.onSelect();
+        }
+      }}
+      onKeyUp={(event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          event.preventDefault();
+          props.onPreviewEnd?.();
+        }
+      }}
+      onBlur={() => props.onPreviewEnd?.()}
     >
       <span
         className="dth-theme-card-preview"
@@ -298,6 +349,9 @@ export function ThemeCard(props: { theme: ThemeCardModel; selected: boolean; onS
       </span>
       <span className="dth-theme-card-meta">
         <span className="dth-theme-card-name">{props.theme.name}</span>
+        <span className={`dth-theme-card-badge is-${grade ?? 'AA'}`} title={grade === undefined ? undefined : `WCAG ${grade}`}>
+          {grade ?? 'AA'}
+        </span>
         <span className="dth-theme-card-tag">{props.theme.tag}</span>
       </span>
       <span className="dth-theme-card-desc">{props.theme.description}</span>

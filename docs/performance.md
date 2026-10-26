@@ -16,14 +16,41 @@ npm run bench
 
 | 操作 | 耗时 |
 |---|---|
-| 主题 token 构建（6 套主题 × ~110 token） | 23.35 µs/op |
-| 主题切换（注册 + setTheme 逻辑） | 0.13 µs/op |
-| 字体 CSS 生成 | 1.37 µs/op |
-| 壁纸 CSS 生成 | 0.68 µs/op |
-| 毛玻璃 resolve + CSS | 0.53 µs/op |
-| 透明度 token 层构建 | 0.83 µs/op |
-| 配置校验（无效输入） | 3.97 µs/op |
-| 配置导入 + 迁移 | 4.27 µs/op |
+| 主题 token 构建（6 套主题 × ~110 token） | 24.59 µs/op |
+| 主题切换（注册 + setTheme 逻辑） | 0.28 µs/op |
+| 字体 CSS 生成 | 4.93 µs/op |
+| 壁纸 CSS 生成 | 1.36 µs/op |
+| 毛玻璃 resolve + CSS | 0.24 µs/op |
+| 透明度 token 层构建 | 0.79 µs/op |
+| 配置校验（无效输入） | 4.44 µs/op |
+| 配置导入 + 迁移 | 5.66 µs/op |
+
+## 渲染预算
+
+| 指标 | 预算 | 2.0.0 的实现 |
+|---|---|---|
+| 首屏 JS 增量 | < 30 KB（gzip，不含壁纸资源） | 新增代码主要集中在设置页与主题切换，无新增运行时依赖 |
+| 空闲 CPU（均衡档） | < 2% | 粒子 30 FPS；页面隐藏即停；可降到省电档 |
+| 流式输出掉帧 | < 5% | 输入/流式期间粒子层降到 15 FPS 并跳过连线 |
+| 主题切换 | < 300 ms | 纯 token/CSS 更新，无 Canvas 重建 |
+| 字体注册 | < 1.5 s（已缓存） | FontFace + IndexedDB，启动时异步注册 |
+| 长任务 | 无 > 100 ms | 设置写入防抖；观察器回调只翻转一个属性 |
+
+## 流式输出与输入降载
+
+`EffectsEngine.setThrottled(true)` 会把粒子帧间隔抬到不低于 66 ms（约 15 FPS），并跳过粒子连线绘制；它不销毁 Canvas，因此恢复时没有重建闪烁。
+
+触发条件：
+
+- 文档级 `input` / `compositionstart` 事件（输入法组词也算），持续 900 ms；
+- 一个节流的 `MutationObserver` 在短时间内累计 ≥ 24 条 DOM 变更（流式 token 的典型特征）。
+
+绘制层是装饰层，文字排版在主线程；降帧期间输入与滚动仍保持响应。
+
+## 选择器与观察器
+
+- 旧版用 `html:has([data-review-view], pre)` 判断阅读态。`:has()` 会在每次流式 token 变化时触发整文档样式重算。现在改为单个 `html[data-dth-reading]` / `html[data-dth-review]` 状态属性，由 `requestAnimationFrame` 合并的观察器维护。
+- 观察器只监听 `childList`（阅读态）与流式计数，不读取会话内容，也不把任何数据发送到本机之外。
 
 ## 粒子/光影性能档位
 
@@ -53,7 +80,7 @@ npm run bench
 - 透明度走 `theme.overrideTokens`（官方可逆 token 层），不额外注入样式。
 - 壁纸为单个 `body::before` 层 + `body::after` 遮罩/混合。
 - 设置写入 350ms 防抖，滑块连续拖动不高频写盘。
-- 无 eval、无高频定时器、无 MutationObserver、无持续 DOM 监听。
+- 无 eval、无高频定时器；两个 `MutationObserver` 都只做计数/属性翻转，rAF 合并，不读会话文本。
 
 ## 局限（如实声明）
 

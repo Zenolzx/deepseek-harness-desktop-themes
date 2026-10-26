@@ -12,7 +12,7 @@ test('export → import round-trips a config', () => {
 
   const json = exportConfigJson(original);
   const parsed = JSON.parse(json);
-  assert.equal(parsed.schemaVersion, 3);
+  assert.equal(parsed.schemaVersion, 4);
 
   const result = parseImportedConfig(json);
   assert.equal(result.ok, true);
@@ -36,4 +36,10 @@ test('exported JSON carries no image bytes or secret fields', () => {
   assert.ok(!json.includes('base64'));
   assert.ok(!json.includes('token'));
   assert.ok(!json.includes('password'));
+});
+test('backup strips hydrated builtin images and temporary blob URLs',()=>{
+  for(const path of ['blob:private-runtime','data:image/png;base64,private-image']){
+    const c=createDefaultConfig();c.wallpaper.path=path;
+    const exported=exportConfigJson(c);assert.ok(!exported.includes(path));assert.equal(JSON.parse(exported).config.wallpaper.path,'');
+  }
 });

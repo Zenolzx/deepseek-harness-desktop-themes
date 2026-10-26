@@ -8,7 +8,7 @@ import { resolveVoiceProfile, VOICE_STYLE_IDS } from '../src/pet/speech.ts';
 import { readFileSync } from 'node:fs';
 
 test('default config has a full pet section', () => {
-  assert.equal(DEFAULT_CONFIG.pet.enabled, true);
+  assert.equal(DEFAULT_CONFIG.pet.enabled, false);
   assert.equal(DEFAULT_CONFIG.pet.style, 'moonfox');
   assert.equal(DEFAULT_CONFIG.pet.positionX, 89);
   assert.equal(DEFAULT_CONFIG.pet.positionY, 82);
@@ -82,7 +82,7 @@ test('coerceConfig clamps out-of-range pet values and rejects unknown styles', (
   assert.equal(config.pet.positionX, 100); // clamped to max
   assert.equal(config.pet.positionY, 0); // clamped to min
   assert.equal(config.pet.size, 64); // clamped to min
-  assert.equal(config.pet.enabled, true); // untouched default
+  assert.equal(config.pet.enabled, false); // companion is opt-in
 });
 
 test('coerceConfig clamps the pet size to the new 288px maximum and defaults bad voice style', () => {
