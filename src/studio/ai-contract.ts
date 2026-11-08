@@ -3,6 +3,7 @@ import { coerceConfig } from '../config/validation.ts';
 import { draftIssues } from './model.ts';
 
 export const AI_CHANNEL = '/desktop-themes-ai';
+export const AI_API_PREFIX = 'desktop-themes-ai';
 export interface ModelChoice { provider: string; model: string }
 export interface DesignSnapshot { draft: CustomThemeConfig; environment: DesktopThemesConfig }
 export interface ReferenceImage { id: string; name: string; data: string }

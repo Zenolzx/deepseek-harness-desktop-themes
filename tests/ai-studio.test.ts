@@ -34,11 +34,12 @@ test('readability errors cannot replace a valid preview; reference assets never 
   const text=JSON.stringify(modelSnapshot(base));assert.ok(!text.includes('private'));assert.ok(!text.includes('sourceId'));assert.ok(!text.includes('performance'));
 });
 
-function harness(responses:Array<string|'error'|'incomplete'>,vision=false){
+function harness(responses:Array<string|'error'|'incomplete'>,vision=false,modern=false){
   let handler:ConnectionRpcHandler|undefined,calls=0,uploads=0,disposed=false;
   const captured:GenerateOptions[]=[];const cleanups:Array<()=>unknown>=[];
+  const routes=new Map<string,{fetch(request:Request):Promise<Response>}>();
   const services:Record<string,unknown>={
-    connection:{rpc:{handle(channel:string,callback:ConnectionRpcHandler){assert.equal(channel,AI_CHANNEL);handler=callback;return async()=>{disposed=true;};}}},
+    connection:{...(modern?{fetch:{register(route:{path:string;fetch(request:Request):Promise<Response>}){routes.set(route.path,route);return ()=>{routes.delete(route.path);disposed=true;};}}}:{}),rpc:{handle(channel:string,callback:ConnectionRpcHandler){assert.equal(modern,false,'modern host must use authenticated API Fetch routes');assert.equal(channel,AI_CHANNEL);handler=callback;return async()=>{disposed=true;};}}},
     agentDefaultModel:{currentSelection:()=>({provider:'fixture',model:'fixture-model'})},
     attachments:{imageLimits:{maxImagesPerMessage:3,maxMessageImageBytes:6*1024*1024},validateImage:async()=>{},saveImage:async()=>{uploads++;return {attachmentId:'fixture',mediaType:'image/png',bytes:1,width:1,height:1};}},
     llm:{listProviders:()=>[{id:'fixture',name:'fixture'}],listModels:async()=>[{provider:'fixture',id:'fixture-model',name:'Fixture',inputModalities:vision?['text','image']:['text']}],
@@ -51,7 +52,14 @@ function harness(responses:Array<string|'error'|'incomplete'>,vision=false){
   };
   const context:AiHostContext={get:name=>services[name],inject(_names,callback){callback(context);},effect(callback){const cleanup=callback();if(typeof cleanup==='function')cleanups.push(cleanup as ()=>unknown);}};
   registerAiHost(context);
-  const transport=createAiTransport({rpc:{call:async(_channel:string,endpoint:string,payload:unknown,signal?:AbortSignal)=>handler!(endpoint,payload,signal ?? new AbortController().signal)}});
+  const transport=createAiTransport({rpc:{call:async(channel:string,endpoint:string,payload:unknown,signal?:AbortSignal)=>{
+    if(channel==='/api'){
+      const route=routes.get('/api/'+endpoint);if(!route)throw new Error('transport failure: HTTP 404');
+      const response=await route.fetch(new Request('http://localhost/api/'+endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'client-request',rpcId:'fixture',method:endpoint,payload}),signal}));
+      assert.equal(response.status,200);const envelope=await response.json() as {rpcId:string;result:unknown};assert.equal(envelope.rpcId,'fixture');return envelope.result;
+    }
+    return handler!(endpoint,payload,signal ?? new AbortController().signal);
+  }}});
   const request:DesignRequest={baseVersion:'base-1',prompt:'把正文调大到18px，其他不变',snapshot:snapshot(),history:[],images:[],redesign:false};
   return {transport,request,captured,get calls(){return calls;},get uploads(){return uploads;},get disposed(){return disposed;},async dispose(){for(const cleanup of cleanups.reverse())await cleanup();}};
 }
@@ -87,4 +95,10 @@ test('images require declared vision support before upload; supported images use
 test('already cancelled requests never return a valid design',async()=>{
   const h=harness([JSON.stringify(output())]),controller=new AbortController();controller.abort();
   await assert.rejects(h.transport.call('generate',h.request,controller.signal),/取消|abort/i);await h.dispose();
+});
+test('modern hosts expose models and generation through authenticated /api Fetch routes',async()=>{
+  const h=harness([JSON.stringify(output({name:'青绿水光'}))],false,true);
+  const models=await h.transport.call<{current:{model:string}}>('models',{});assert.equal(models.current.model,'fixture-model');
+  const result=await h.transport.call<DesignResult>('generate',h.request);assert.equal(result.snapshot.draft.name,'青绿水光');
+  await h.dispose();assert.equal(h.disposed,true);
 });

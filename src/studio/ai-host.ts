@@ -4,7 +4,11 @@ import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection';
 import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api';
 import { randomUUID } from 'node:crypto';
 import { coerceConfig } from '../config/validation.ts';
-import { AI_CHANNEL, applyDesignOutput, modelSnapshot, object, type DesignRequest, type DesignSnapshot, type ModelCatalog, type ModelChoice } from './ai-contract.ts';
+import { AI_CHANNEL, AI_API_PREFIX, applyDesignOutput, modelSnapshot, object, type DesignRequest, type DesignSnapshot, type ModelCatalog, type ModelChoice } from './ai-contract.ts';
+
+interface ConnectionWithFetch extends HostConnectionHandle {
+  fetch?: { register(route:{path:string;methods:string[];requestBody:'buffered';fetch(request:Request):Promise<Response>}):()=>unknown };
+}
 
 export interface AiHostContext {
   get(name:string):unknown;
@@ -37,8 +41,10 @@ function readRequest(raw:unknown):DesignRequest {
 }
 
 export function registerAiHost(root:AiHostContext) {
-  root.inject(['connection','llm','agentDefaultModel'],ctx=>{
-    const connection=ctx.get('connection') as HostConnectionHandle;
+  // Connection registers the route on the *calling* Cordis fiber. Its webServer
+  // access therefore needs to be injected here, not only by Connection itself.
+  root.inject(['connection','webServer','llm','agentDefaultModel'],ctx=>{
+    const connection=ctx.get('connection') as ConnectionWithFetch;
     const llm=ctx.get('llm') as LlmRuntime;
     const defaults=ctx.get('agentDefaultModel') as {currentSelection():ModelChoice};
     if(!connection?.rpc?.handle)return;
@@ -52,7 +58,7 @@ export function registerAiHost(root:AiHostContext) {
       return {current:defaults.currentSelection(),models:groups.flat(),imagesAvailable:!!attachments};
     };
     ctx.effect(()=>{
-      const dispose=connection.rpc.handle(AI_CHANNEL,async(endpoint,raw,signal):Promise<RpcResult<unknown>>=>{
+      const handler=async(endpoint:string,raw:unknown,signal:AbortSignal):Promise<RpcResult<unknown>>=>{
         const controller=new AbortController(); active.add(controller);
         const cancel=()=>controller.abort();signal.addEventListener('abort',cancel,{once:true});if(signal.aborted)cancel();
         const timeout=setTimeout(()=>controller.abort(new Error('生成超时，请重试')),180_000);
@@ -92,8 +98,24 @@ export function registerAiHost(root:AiHostContext) {
           throw new Error('生成失败');
         }catch(error){return {ok:false,error:{code:controller.signal.aborted?'cancelled':'internal',message:controller.signal.aborted?(controller.signal.reason instanceof Error?controller.signal.reason.message:'已取消生成'):error instanceof Error?error.message:'主题生成失败',details:{}}};}
         finally{clearTimeout(timeout);signal.removeEventListener('abort',cancel);active.delete(controller);}
-      },{authority:'trusted-host'});
-      return ()=>{for(const controller of active)controller.abort();return dispose();};
+      };
+      const disposers:Array<()=>unknown>=[];
+      if(connection.fetch?.register){
+        // Modern Desktop admits and authenticates /api exact Fetch routes. A
+        // custom rpc.handle route accesses webServer through a provider shadow
+        // in Cordis 4.0.5, failing before its HTTP route can be registered.
+        for(const endpoint of ['models','generate'])disposers.push(connection.fetch.register({
+          path:`/api/${AI_API_PREFIX}/${endpoint}`,methods:['POST'],requestBody:'buffered',
+          async fetch(request){
+            let body:unknown;
+            try{const text=await request.text();if(text.length>10*1024*1024)return new Response('request too large',{status:413});body=JSON.parse(text);}catch{return new Response('invalid JSON',{status:400});}
+            if(!object(body)||body.type!=='client-request'||typeof body.rpcId!=='string'||body.rpcId.length>256||body.method!==`${AI_API_PREFIX}/${endpoint}`)return new Response('invalid RPC envelope',{status:400});
+            const result=await handler(endpoint,body.payload,request.signal);
+            return new Response(JSON.stringify({type:'server-response',rpcId:body.rpcId,result}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+          },
+        }));
+      }else disposers.push(connection.rpc.handle(AI_CHANNEL,handler,{authority:'trusted-host'}));
+      return async()=>{for(const controller of active)controller.abort();for(const dispose of disposers.reverse())await dispose();};
     },'desktop-themes: AI design RPC');
   });
 }

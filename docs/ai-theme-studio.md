@@ -26,7 +26,7 @@
 
 AI 功能需要宿主启用 `connection.rpc`、`llm`、`agentDefaultModel`，图片请求还需要 `attachments` 以及支持图片输入的提供方模型。缺少服务时，工作室原有主题编辑功能仍可使用；AI 调用会显示连接或模型错误。
 
-内部通道为 `/desktop-themes-ai`，提供 `models` 和 `generate` 两个操作，沿用 Connection 的来源检查与请求取消机制。此通道仅用于工作室，不向模型注册可调用的工具。
+现代宿主使用 `/api/desktop-themes-ai/models` 和 `/api/desktop-themes-ai/generate` 两个认证接口，沿用 Connection 的来源检查、owner 权限与请求取消机制。旧版宿主回退到 `/desktop-themes-ai` 通道。此通道仅用于工作室，不向模型注册可调用的工具。
 
 开发验证：
 
