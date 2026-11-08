@@ -13,9 +13,13 @@ assert.equal(pkg.version,manifest.version,'package and manifest versions must ma
 if(process.env.GITHUB_REF_TYPE==='tag')assert.equal(process.env.GITHUB_REF_NAME,`v${pkg.version}`,'release tag must match the package');
 const output=join(root,'dist','release');mkdirSync(output,{recursive:true});
 const npmCli=process.env.npm_execpath || join(dirname(process.execPath),'node_modules','npm','bin','npm-cli.js');
-const packed=spawnSync(process.execPath,[npmCli,'pack','--ignore-scripts','--json','--pack-destination',output],{cwd:root,encoding:'utf8'});
+const releaseBuild=process.env.GITHUB_REF_TYPE==='tag'?`${process.env.GITHUB_REF_NAME}+${process.env.GITHUB_SHA}`:process.env.DTH_BUILD_ID;
+const packed=spawnSync(process.execPath,[npmCli,'pack','--ignore-scripts','--json','--pack-destination',output],{cwd:root,encoding:'utf8',env:{...process.env,...(releaseBuild?{DTH_BUILD_ID:releaseBuild}:{}),npm_config_ignore_scripts:'true'}});
 if(packed.status!==0)throw new Error(packed.stderr || 'npm pack failed');
-const info=JSON.parse(packed.stdout)[0],files=info.files.map(file=>file.path);
+// Some npm 10 builds still emit prepare output before the --json result.
+const jsonStart=packed.stdout.search(/^\s*\[\s*\{/m);
+assert.ok(jsonStart>=0,'npm pack did not return a JSON package manifest');
+const info=JSON.parse(packed.stdout.slice(jsonStart))[0],files=info.files.map(file=>file.path);
 for(const required of ['lib/client.js','lib/index.js','cordis.patch.yml','package.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md','docs/ai-theme-studio.md'])assert.ok(files.includes(required),`missing ${required}`);
 for(const file of files)assert.ok(['lib/client.js','lib/index.js','cordis.patch.yml','package.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md'].includes(file)||file==='docs/workspace.md'||file==='docs/install.md'||file==='docs/ai-theme-studio.md'||/^docs\/screenshots\/studio\/[\w-]+\.png$/.test(file),`unreviewed package file: ${file}`);
 const versioned=join(output,info.filename),alias=join(output,'dsh-desktop-themes.tgz');

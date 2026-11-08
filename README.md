@@ -6,7 +6,7 @@
 
 外观工作室现提供 **AI 主题设计助手**：输入多句要求、添加参考图，多轮调整并预览，满意后保存应用。复用 DSH 的默认模型和凭据，支持本地会话恢复、版本回退与取消生成。[使用说明](docs/ai-theme-studio.md)。
 
-**安装或升级到 3.1.0：** [下载最新预构建安装包](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest/download/dsh-desktop-themes.tgz)，在 DSH 插件管理器中安装，然后完全退出并重新打开 DSH。[发布记录与校验文件](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest)。已有用户也需要安装新版，旧安装不会被远程自动替换；已有主题设置无需重置。[详细升级说明](docs/install.md#安装或升级到最新版)。
+**安装或升级到 3.1.1：** [下载最新预构建安装包](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest/download/dsh-desktop-themes.tgz)，在 DSH 插件管理器中安装，然后完全退出并重新打开 DSH。[发布记录与校验文件](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest)。已有用户也需要安装新版，旧安装不会被远程自动替换；已有主题设置无需重置。[详细升级说明](docs/install.md#安装或升级到最新版)。
 
 - 平台：**DSH Desktop（Electron）**；宿主进程侧负责配置持久化。Web profile 仍可加载同一构建，但 2.0 起只保证桌面端体验
 - 技术：TypeScript + React（客户端）+ Cordis（DSH 插件运行时）
@@ -98,7 +98,7 @@ npm run bench        # 可复现的性能微基准
 生成可安装包：
 
 ```bash
-npm pack            # 产出 dsh-desktop-themes-3.1.0.tgz
+npm pack            # 产出 dsh-desktop-themes-3.1.1.tgz
 npm run install:desktop   # 直接把 lib/*、package.json 写入 ~/.dsh/profiles/desktop
 ```
 
@@ -141,7 +141,7 @@ npm run install:desktop   # 直接把 lib/*、package.json 写入 ~/.dsh/profile
 
 ```bash
 # 安装构建好的 tgz（推荐，桌面端插件管理器也可选择此文件）
-dsh plugin --profile desktop add file:D:/path/to/dsh-desktop-themes-3.1.0.tgz
+dsh plugin --profile desktop add file:D:/path/to/dsh-desktop-themes-3.1.1.tgz
 
 # 或从 npm 安装（若已发布）
 dsh plugin --profile desktop add dsh-desktop-themes
