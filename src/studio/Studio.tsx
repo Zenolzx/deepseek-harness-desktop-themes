@@ -16,12 +16,14 @@ import { downloadFile, downloadPreviewCard, exportStyleBundle, parseStyleBundle,
 import { putWallpaper, newWallpaperId, deleteWallpaper } from '../storage/wallpaper-store.ts';
 import { buildUiStack, buildCodeStack } from '../fonts/presets.ts';
 import { COMMUNITY_THEMES } from '../workspace/community.ts';
+import { AiDesigner } from './AiDesigner.tsx';
+import type { AiTransport } from './ai-client.ts';
 
 export { studioCss };
 export function StudioIcon({size = 18}:{size?:number}) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M3 10h18M10 10v11"/><circle cx="15.5" cy="15.5" r="2.5" fill="currentColor" stroke="none"/></svg>;
 }
-export interface StudioProps { store: Store<DesktopThemesConfig>; commit: (config: DesktopThemesConfig) => void; close?: () => void; preview?: (config: DesktopThemesConfig) => void; cancelPreview?: () => void; saveNow?: () => Promise<boolean> }
+export interface StudioProps { store: Store<DesktopThemesConfig>; commit: (config: DesktopThemesConfig) => void; close?: () => void; preview?: (config: DesktopThemesConfig) => void; cancelPreview?: () => void; saveNow?: () => Promise<boolean>; ai?: AiTransport }
 const labels: Record<keyof CustomThemeColors,string> = { background:'画布',panel:'面板',text:'正文',primary:'主强调色',accent:'辅助色',particle:'粒子',glow:'光晕' };
 const formatLabels: Record<ThemeFormat,string> = { vscode:'VS Code JSON / JSONC',base16:'Base16 JSON / YAML',base24:'Base24 JSON / YAML',iterm:'iTerm .itermcolors',shadcn:'shadcn / Tweakcn CSS',dsh:'DSH 原生主题' };
 const variantLabels: Record<Variant,string> = { light:'浅色',dark:'深色','high-contrast':'高对比',colorblind:'蓝橙配色',oled:'OLED',paper:'纸感' };
@@ -187,6 +189,7 @@ export function Studio(props: StudioProps) {
         <div className="dth-preview-tabs" aria-label="预览内容">{([ ['conversation','会话与代码'],['document','长文与表格'],['review','代码评审'],['menu','菜单与状态'] ] as const).map(([id,label])=><button key={id} aria-pressed={sample===id} onClick={()=>setSample(id)}>{label}</button>)}</div><StudioPreview draft={compare ? baseline : draft} config={compare ? baselineEnvironment : environment} sample={sample}/>
         <div className="dth-studio-variants"><span>生成家族变体</span>{(Object.keys(variantLabels) as Variant[]).map(v=><button key={v} onClick={()=>change(makeVariant(draft,v))}>{variantLabels[v]}</button>)}</div>
         <p className="dth-studio-note">预览使用示例会话与代码，不读取你的会话内容。蓝橙变体用于减少红绿依赖，尚未做色觉认证。</p>
+        {props.ai && <AiDesigner snapshot={{draft,environment}} transport={props.ai} official={props.store.get} apply={next=>{stopTrial();setBundle(null);setEnvironment(next.environment);change(next.draft);}}/>}
         <details className="dth-studio-transfer"><summary>专业格式互通 · 导入 / 导出单主题</summary><h2>把熟悉的配色带进来</h2><div className="dth-studio-actions"><label>格式<select aria-label="格式" value={format} onChange={e=>{setFormat(e.target.value as ThemeFormat);setReport(null);}}>{Object.entries(formatLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><label>CSS 配色块<select aria-label="CSS 配色块" value={scheme} onChange={e=>setScheme(e.target.value as 'light'|'dark')}><option value="dark">深色 .dark</option><option value="light">浅色 :root</option></select></label>
           <label className="dth-studio-file">选择文件<input type="file" accept=".json,.jsonc,.yaml,.yml,.css,.itermcolors" onChange={async e=>{const file=e.target.files?.[0];e.target.value='';if(!file)return;if(file.size>1024*1024){setMessage('文件超过 1 MB');return;}const request=++sequence.current;try {const text=await file.text();if(request!==sequence.current)return;setImportText(text);parse(text);}catch{setMessage('文件读取失败');}}}/></label></div>
           <textarea aria-label="主题导入内容" value={importText} onChange={e=>setImportText(e.target.value)} placeholder="粘贴主题 JSON、Base16 YAML、CSS 或 iTerm 配色…" maxLength={1024*1024}/><div className="dth-studio-actions"><button disabled={!importText.trim()} onClick={()=>parse(importText)}>导入到草稿</button><button onClick={download}>导出当前草稿</button></div>

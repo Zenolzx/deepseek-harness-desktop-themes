@@ -17,6 +17,7 @@
 
 import { DesktopThemesSchema } from './config/schema.ts';
 import { SETTINGS_NAMESPACE } from './config/types.ts';
+import { registerAiHost, type AiHostContext } from './studio/ai-host.ts';
 
 /**
  * The entry-scoped configuration schema. DSH 0.2.x reads this export, serves
@@ -43,6 +44,7 @@ interface HostContext {
 }
 
 export function apply(ctx: HostContext): void {
+  registerAiHost(ctx as unknown as AiHostContext);
   ctx.inject(['settings'], (settingsCtx) => {
     const settings = settingsCtx.settings;
     if (typeof settings.configure === 'function') {

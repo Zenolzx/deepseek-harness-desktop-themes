@@ -14,7 +14,7 @@ const update=process.env.DTH_UPDATE_VISUAL==='1';
 mkdirSync('tmp/studio-preview',{recursive:true});
 mkdirSync('docs/screenshots/studio',{recursive:true});
 mkdirSync('tests/visual/studio',{recursive:true});
-await build({entryPoints:['scripts/studio-preview.tsx'],outfile:'tmp/studio-preview/app.js',bundle:true,format:'iife',loader:{'.css':'text','.png':'dataurl'},jsx:'automatic'});
+await build({entryPoints:['scripts/studio-preview.tsx'],outfile:'tmp/studio-preview/app.js',bundle:true,format:'iife',loader:{'.css':'text','.png':'dataurl','.svg':'dataurl'},jsx:'automatic'});
 await build({entryPoints:['scripts/runtime-preview.tsx'],outfile:'tmp/studio-preview/runtime.js',bundle:true,format:'iife',loader:{'.css':'text','.svg':'dataurl','.jpg':'dataurl','.png':'dataurl'},jsx:'automatic'});
 const server=createServer((req,res)=>{const js=req.url?.startsWith('/app.js')?'app.js':req.url?.startsWith('/runtime.js')?'runtime.js':null;res.setHeader('Content-Type',js?'text/javascript':'text/html');res.end(js?readFileSync('tmp/studio-preview/'+js):`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Theme Studio</title><div id="root"></div><script src="/${req.url?.startsWith('/runtime')?'runtime.js':'app.js'}"></script></html>`);});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -33,7 +33,7 @@ try {
    const png=await page.evaluate(async base64=>{const image=new Image();image.src='data:image/png;base64,'+base64;await image.decode();const canvas=document.createElement('canvas');canvas.width=480;canvas.height=Math.round(image.height*480/image.width);const c=canvas.getContext('2d');c.imageSmoothingQuality='high';c.drawImage(image,0,0,canvas.width,canvas.height);return canvas.toDataURL('image/png').split(',')[1];},screenshot.toString('base64'));
    writeFileSync(`src/assets/previews/${id}.png`,Buffer.from(png,'base64'));
   }
-  await build({entryPoints:['scripts/studio-preview.tsx'],outfile:'tmp/studio-preview/app.js',bundle:true,format:'iife',loader:{'.css':'text','.png':'dataurl'},jsx:'automatic'});
+  await build({entryPoints:['scripts/studio-preview.tsx'],outfile:'tmp/studio-preview/app.js',bundle:true,format:'iife',loader:{'.css':'text','.png':'dataurl','.svg':'dataurl'},jsx:'automatic'});
   await build({entryPoints:['scripts/runtime-preview.tsx'],outfile:'tmp/studio-preview/runtime.js',bundle:true,format:'iife',loader:{'.css':'text','.svg':'dataurl','.jpg':'dataurl','.png':'dataurl'},jsx:'automatic'});
  }
  for(const theme of ['mint-breeze','sakura-mist','quantum-blue','aurora-dream','sunset-flow','obsidian-gold']) {

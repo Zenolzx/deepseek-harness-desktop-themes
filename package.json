@@ -42,6 +42,7 @@
     "cordis.patch.yml",
     "THIRD_PARTY_NOTICES.md",
     "docs/workspace.md",
+    "docs/ai-theme-studio.md",
     "docs/screenshots/studio"
   ],
   "scripts": {
@@ -56,7 +57,8 @@
     "bench": "tsx scripts/bench.ts",
     "deploy:web": "node scripts/deploy-web.mjs --restart",
     "deploy:web:no-restart": "node scripts/deploy-web.mjs",
-    "test:studio-browser": "node scripts/verify-studio.mjs"
+    "test:studio-browser": "node scripts/verify-studio.mjs",
+    "test:ai-studio-browser": "node scripts/verify-ai-studio.mjs"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1"

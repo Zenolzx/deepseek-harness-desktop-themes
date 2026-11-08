@@ -7,6 +7,8 @@ import { THEMES } from '../src/themes/index.ts';
 import { buildWorkspaceCss } from '../src/workspace/recipes.ts';
 import { WorkspaceHome } from '../src/workspace/WorkspaceHome.tsx';
 import { draftFromTheme } from '../src/studio/model.ts';
+import type { AiTransport } from '../src/studio/ai-client.ts';
+import { applyDesignOutput, type DesignRequest } from '../src/studio/ai-contract.ts';
 const store=createStore(createDefaultConfig());
 const theme=THEMES.find(t=>t.id===new URL(location.href).searchParams.get('theme')) ?? THEMES[2];
 store.set({...store.get(),theme:theme.id,workspace:{...store.get().workspace,style:theme.id==='mint-breeze'||theme.id==='sakura-mist'?'paper':theme.id==='obsidian-gold'||theme.id==='sunset-flow'?'nocturne':'mineral'}});
@@ -21,4 +23,13 @@ const commit=(next:ReturnType<typeof createDefaultConfig>)=>{base=null;store.set
 const preview=(next:ReturnType<typeof createDefaultConfig>)=>{base??=structuredClone(store.get());store.set(next);};
 const cancelPreview=()=>{if(base){const c=base;base=null;store.set(c);}};
 function Home(){const config=useSyncExternalStore(store.subscribe,store.get,store.get);return <div className="dth-studio"><WorkspaceHome config={config} commit={commit} preview={preview} cancelPreview={cancelPreview} openStudio={()=>location.href='/'}/></div>;}
-createRoot(document.getElementById('root')!).render(new URL(location.href).searchParams.has('home')?<Home/>:<Studio store={store} commit={commit} preview={preview} cancelPreview={cancelPreview}/>);
+const ai:AiTransport|undefined=new URL(location.href).searchParams.has('ai')?{async call<T>(endpoint:string,payload:unknown):Promise<T>{
+  if(endpoint==='models')return {current:{provider:'fixture',model:'vision'},models:[{provider:'fixture',model:'vision',name:'预览测试模型',vision:true}],imagesAvailable:true} as T;
+  const request=payload as DesignRequest;
+  (window as any).__aiRequests=[...((window as any).__aiRequests??[]),request];
+  // Deliberately ignore cancellation to verify that the UI discards late results.
+  await new Promise(resolve=>setTimeout(resolve,request.prompt.includes('慢速')?900:60));
+  if(request.prompt.includes('失败'))throw new Error('模拟模型不可用，草稿保留');
+  return applyDesignOutput(request.snapshot,{theme:{name:request.prompt.slice(0,64)},environment:{font:{fontSize:18}},summary:'已更新主题名称与字号。',limitations:[]},request.baseVersion) as T;
+}}:undefined;
+createRoot(document.getElementById('root')!).render(new URL(location.href).searchParams.has('home')?<Home/>:<Studio store={store} commit={commit} preview={preview} cancelPreview={cancelPreview} ai={ai}/>);

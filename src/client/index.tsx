@@ -42,6 +42,7 @@ import { hydrateBuiltinWallpaper } from './theme-presets.ts';
 import { loadConfigSnapshot, saveConfigSnapshot } from '../storage/config-store.ts';
 import { disposeFontFaces, hydrateInstalledFonts } from '../fonts/runtime.ts';
 import { buildWorkspaceCss } from '../workspace/recipes.ts';
+import { createAiTransport } from '../studio/ai-client.ts';
 
 const PLUGIN_ID = 'dsh-desktop-themes';
 const OVERRIDE_SOURCE = PLUGIN_ID;
@@ -168,6 +169,7 @@ function prefersReducedTransparency(): boolean {
 }
 
 export function apply(ctx: ClientContext): void {
+  const ai = createAiTransport(ctx.get('connection'));
   const theme = ctx.get('theme') as ThemeRuntimeLike | undefined;
   const slots = ctx.get('slots') as SlotsLike | undefined;
 
@@ -858,7 +860,7 @@ export function apply(ctx: ClientContext): void {
   if (slots !== undefined) {
     slots.inject('main', () => {
       slots.register({ name: 'main', key: 'desktop-themes-studio' }, () => createElement(Studio, {
-        store, commit, preview, cancelPreview, saveNow, close: () => {
+        store, commit, preview, cancelPreview, saveNow, ai, close: () => {
           layoutFace?.selectPanel?.(null);
         },
       }));
