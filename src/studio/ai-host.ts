@@ -87,7 +87,7 @@ export function registerAiHost(root:AiHostContext) {
             const output=await collectModelText(llm,{...selection,system:instructions,messages,maxTokens:6000,signal:controller.signal});
             try {
               const parsed:unknown=JSON.parse(output.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));
-              const result=applyDesignOutput(request.snapshot,parsed,request.baseVersion);
+              const result=applyDesignOutput(request.snapshot,parsed,request.baseVersion,{repairReadability:true});
               if(controller.signal.aborted)throw new Error('已取消');
               return {ok:true,value:result};
             }catch(error){

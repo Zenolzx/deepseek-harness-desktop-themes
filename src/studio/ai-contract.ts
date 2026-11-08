@@ -1,6 +1,6 @@
 import type { CustomThemeConfig, DesktopThemesConfig } from '../config/types.ts';
 import { coerceConfig } from '../config/validation.ts';
-import { draftIssues } from './model.ts';
+import { draftIssues, repairDraft } from './model.ts';
 
 export const AI_CHANNEL = '/desktop-themes-ai';
 export const AI_API_PREFIX = 'desktop-themes-ai';
@@ -36,7 +36,7 @@ function checkAgainst(patch: Record<string, unknown>, normalized: Record<string,
   }
 }
 /** Reject before coercion can silently replace invalid model output with defaults. */
-export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersion: string): DesignResult {
+export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersion: string, options:{repairReadability?:boolean}={}): DesignResult {
   if (!object(raw)) reject('模型必须返回 JSON 对象');
   exactKeys(raw,['theme','environment','summary','limitations'],'结果');
   if (typeof raw.summary!=='string' || !raw.summary.trim() || raw.summary.length>4000) reject('缺少改动说明');
@@ -66,13 +66,21 @@ export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersio
       if(Array.isArray(v) && (v.length>6||v.some(c=>typeof c!=='string'||!/^#[\da-f]{6}$/i.test(c)))) reject(`${key}.${field} 颜色数组无效`);
     }
   }
-  const draft=mergeFields(base.draft as unknown as Record<string,unknown>,theme) as unknown as CustomThemeConfig;
+  let draft=mergeFields(base.draft as unknown as Record<string,unknown>,theme) as unknown as CustomThemeConfig;
   const environment=mergeFields(base.environment as unknown as Record<string,unknown>,env) as unknown as DesktopThemesConfig;
   if(environment.wallpaper.enabled && !environment.wallpaper.sourceId && !environment.wallpaper.path) reject('请先选择实际壁纸，再启用壁纸');
   const normalized=coerceConfig({...environment,theme:'custom-ai-validation',customThemes:[{...draft,id:'custom-ai-validation'}]});
   const normalizedDraft=normalized.customThemes[0];
   checkAgainst(theme,normalizedDraft as unknown as Record<string,unknown>,'theme');
   checkAgainst(env,normalized as unknown as Record<string,unknown>,'environment');
+  let summary=raw.summary;
+  if(options.repairReadability && draftIssues(draft).length){
+    const original=draft;
+    draft=repairDraft(draft);
+    const labels:Record<string,string>={primary:'主强调色',text:'正文色',success:'成功状态色',warning:'警告状态色',danger:'错误状态色'};
+    const repaired=[...Object.keys(draft.colors).filter(k=>draft.colors[k as keyof typeof draft.colors]!==original.colors[k as keyof typeof original.colors]),...Object.keys(draft.states ?? {}).filter(k=>draft.states?.[k]!==original.states?.[k])];
+    if(repaired.length)summary+='\n可读性自动修正：微调了'+repaired.map(k=>labels[k]??k).join('、')+'，以满足对比度要求。';
+  }
   const issues=draftIssues(draft); if(issues.length) reject(`可读性检查失败：${issues.join('；')}`);
   const changes:string[]=[];
   const collect=(patch:Record<string,unknown>,old:Record<string,unknown>,prefix:string)=>{
@@ -81,9 +89,9 @@ export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersio
       else if(JSON.stringify(value)!==JSON.stringify(old[key]))changes.push(prefix+key);
     }
   };
-  collect(theme,base.draft as unknown as Record<string,unknown>,'theme.');
+  collect({...theme,colors:draft.colors,...(draft.states?{states:draft.states}:{})},base.draft as unknown as Record<string,unknown>,'theme.');
   collect(env,base.environment as unknown as Record<string,unknown>,'');
-  return {baseVersion,snapshot:{draft,environment},summary:raw.summary,limitations:raw.limitations as string[],changes};
+  return {baseVersion,snapshot:{draft,environment},summary,limitations:raw.limitations as string[],changes};
 }
 
 /** Only appearance data is sent to the model, never unrelated settings. */

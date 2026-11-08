@@ -13,7 +13,7 @@ const {pathToFileURL}=require('node:url');
   class Llm extends Service{
     constructor(c){super(c,'llm');}
     listProviders(){return [];}
-    async *stream(){yield {type:'text-delta',index:0,text:JSON.stringify({theme:{name:'青绿淡雅水光'},summary:'已调整主题名称，保留其他外观。',limitations:[]})};yield {type:'finish',reason:{kind:'stop'}};}
+    async *stream(){yield {type:'text-delta',index:0,text:JSON.stringify({theme:{name:'青绿淡雅水光',colors:{primary:'#4f9085'}},summary:'已调整主题名称与青绿强调色。',limitations:[]})};yield {type:'finish',reason:{kind:'stop'}};}
   }
   class Defaults extends Service{constructor(c){super(c,'agentDefaultModel');}currentSelection(){return {provider:'fixture',model:'fixture'};}}
   try{
@@ -28,7 +28,7 @@ const {pathToFileURL}=require('node:url');
     const catalog=await models.json();assert.equal(catalog.rpcId,'runtime-probe');assert.equal(catalog.result.value.current.model,'fixture');
     const environment=createDefaultConfig();
     const response=await carrier.fetch(request('generate',{baseVersion:'runtime-base',prompt:'青绿淡雅风格，保持字体',snapshot:{environment,draft:draftFromTheme(environment.theme,environment.customThemes)},history:[],images:[],redesign:false}),owner);
-    assert.equal(response.status,200);const design=await response.json();assert.equal(design.result.ok,true);assert.equal(design.result.value.snapshot.draft.name,'青绿淡雅水光');assert.equal(design.result.value.baseVersion,'runtime-base');
+    assert.equal(response.status,200);const design=await response.json();assert.equal(design.result.ok,true);assert.equal(design.result.value.snapshot.draft.name,'青绿淡雅水光');assert.equal(design.result.value.baseVersion,'runtime-base');assert.match(design.result.value.summary,/可读性自动修正/);assert.notEqual(design.result.value.snapshot.draft.colors.primary,'#4f9085');
     const unauthorized=await carrier.fetch(request('models',{}),{principal:{kind:'guest'}});assert.equal(unauthorized.status,403);
     console.log('Installed Electron runtime passed: Cordis service lifecycle, authenticated /api routing, models, generation, RPC correlation and owner fence. No real model calls.');
   }finally{await ctx.fiber.dispose();}

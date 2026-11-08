@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDefaultConfig } from '../src/config/defaults.ts';
-import { draftFromTheme } from '../src/studio/model.ts';
+import { draftFromTheme, draftIssues } from '../src/studio/model.ts';
 import { AI_CHANNEL, applyDesignOutput, modelSnapshot, type DesignRequest, type DesignResult } from '../src/studio/ai-contract.ts';
 import { registerAiHost, type AiHostContext } from '../src/studio/ai-host.ts';
 import { createAiTransport } from '../src/studio/ai-client.ts';
@@ -101,4 +101,22 @@ test('modern hosts expose models and generation through authenticated /api Fetch
   const models=await h.transport.call<{current:{model:string}}>('models',{});assert.equal(models.current.model,'fixture-model');
   const result=await h.transport.call<DesignResult>('generate',h.request);assert.equal(result.snapshot.draft.name,'青绿水光');
   await h.dispose();assert.equal(h.disposed,true);
+});
+test('AI repairs a pale teal theme against derived surfaces while preserving its ambience and typography',async()=>{
+  const h=harness([JSON.stringify(output({colors:{primary:'#4f9085'}}))],false,true);
+  const before=structuredClone(h.request.snapshot);
+  assert.throws(()=>applyDesignOutput(before,output({colors:{primary:'#4f9085'}}),'strict'),/可读性/);
+  const result=await h.transport.call<DesignResult>('generate',h.request);
+  assert.deepEqual(draftIssues(result.snapshot.draft),[]);
+  assert.notEqual(result.snapshot.draft.colors.primary,'#4f9085');
+  assert.deepEqual(result.snapshot.environment,before.environment);
+  for(const key of ['background','panel','accent','glow','particle'] as const)assert.equal(result.snapshot.draft.colors[key],before.draft.colors[key]);
+  assert.match(result.summary,/可读性自动修正.*主强调色/);
+  assert.ok(result.changes.includes('theme.colors.primary'));assert.equal(h.calls,1,'contrast-only repairs need no second model call');
+  await h.dispose();
+});
+test('automatic contrast repair never bypasses structural validation or accepts irreconcilable surfaces',()=>{
+  const base=snapshot();
+  assert.throws(()=>applyDesignOutput(base,output({}, {font:{fontSize:999}}),'v',{repairReadability:true}),/范围/);
+  assert.throws(()=>applyDesignOutput(base,output({colors:{background:'#000000',panel:'#ffffff'}}),'v',{repairReadability:true}),/可读性/);
 });

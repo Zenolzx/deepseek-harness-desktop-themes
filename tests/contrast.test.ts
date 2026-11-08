@@ -4,7 +4,18 @@ import assert from 'node:assert/strict';
 import { THEMES, resolvePalette } from '../src/themes/index.ts';
 import { auditPalette, auditPalettes, describeContrast, passesContrast, CONTRAST_PAIRS } from '../src/themes/contrast.ts';
 import { buildThemeTokens } from '../src/themes/palette.ts';
-import { contrastRatio } from '../src/utils/color.ts';
+import { contrastRatio, readableOn } from '../src/utils/color.ts';
+
+test('button text clears AA on mid-tone teal even when both supplied candidates fail',()=>{
+  const accent='#4f9085',paper='#ecf4ed';
+  assert.ok(contrastRatio('#ffffff',accent)<4.5);assert.ok(contrastRatio(paper,accent)<4.5);
+  assert.ok(contrastRatio(readableOn(accent,paper,'#ffffff'),accent)>=4.5);
+  // Cover the luminance interval in which choosing a direction at 0.5 fails.
+  for(let value=0;value<=255;value++){
+    const hex='#'+value.toString(16).padStart(2,'0').repeat(3);
+    assert.ok(contrastRatio(readableOn(hex,'#eeeeee','#ffffff'),hex)>=4.5,hex);
+  }
+});
 
 test('all six built-in themes pass the WCAG AA contrast gate', () => {
   const reports = auditPalettes(THEMES.map((theme) => theme.palette));

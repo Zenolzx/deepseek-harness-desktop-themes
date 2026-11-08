@@ -140,8 +140,10 @@ export function readableOn(bg: string, dark: string, light: string, minRatio = 4
   let winner = darkRatio >= lightRatio ? dark : light;
   let ratio = Math.max(darkRatio, lightRatio);
   let guard = 0;
+  // Mid-luminance accents can need black even though luminance is below 0.5.
+  // Using that threshold could keep trying to lighten an already-white winner.
+  const lighter = contrastRatio('#ffffff', bg) >= contrastRatio('#000000', bg);
   while (ratio < minRatio && guard < 40) {
-    const lighter = relativeLuminance(bg) < 0.5;
     winner = lighter ? adjustLightness(winner, 0.04) : adjustLightness(winner, -0.04);
     ratio = contrastRatio(winner, bg);
     guard += 1;
