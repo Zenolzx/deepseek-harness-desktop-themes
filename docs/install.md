@@ -2,6 +2,29 @@
 
 本插件是一个标准的 DSH **双面插件**（宿主 + 客户端），同时声明了 `dsh.bundle`。安装包自带 `cordis.patch.yml` 组合层，安装时自动注册插件行。
 
+## 安装或升级到最新版
+
+当前版本为 **3.1.0**，包含 AI 主题设计助手。
+
+1. 从 [GitHub Releases](https://github.com/liu-zhexi/deepseek-harness-desktop-themes/releases/latest) 下载版本对应的 `.tgz` 安装包。也可以使用[固定下载入口](https://github.com/liu-zhexi/deepseek-harness-desktop-themes/releases/latest/download/dsh-desktop-themes.tgz)，始终指向最新正式版本。
+2. 在 DSH 桌面端的插件管理器中选择该安装包，安装或更新同名插件；不要先卸载或清空配置。
+3. 完全退出 DSH Desktop 后重新打开，仅刷新页面不会加载新的宿主代码。
+4. 检查“设置 → 桌面外观 → 高级 → 关于与诊断”显示 3.1.0；进入外观工作室查看 AI 主题设计助手。
+
+CLI 用户也可使用不可变的版本地址升级，避免相同下载地址的缓存：
+
+```bash
+dsh plugin --profile desktop add https://github.com/liu-zhexi/deepseek-harness-desktop-themes/releases/download/v3.1.0/dsh-desktop-themes-3.1.0.tgz
+```
+
+如果网络或宿主版本不支持直接从 HTTPS 安装，先下载文件，再在插件管理器中选择 `.tgz`。
+
+发布页提供 `SHA256SUMS`。Windows 可用 `Get-FileHash <下载文件路径> -Algorithm SHA256` 对照校验值。
+
+发布新版本不会自动修改其他用户电脑上的安装。每位已安装用户需要执行一次上述升级。当前没有 npm 发布渠道，也没有自动升级服务。保留现有主题配置，首版 AI 会话存储独立于主题设置。
+
+AI 功能还要求宿主提供 Connection RPC、LLM、默认模型服务；图片设计要求附件服务和支持图片输入的模型。服务不足时可继续使用原有主题编辑功能。[AI 使用与限制](ai-theme-studio.md)。
+
 > **2.0 起只保证 Desktop（Electron）体验。** 下文 `--profile web` 命令仅用于兼容旧环境或本地开发；桌面端请使用 `--profile desktop`（见“DSH 0.2.x 桌面端”一节）。
 
 ## 前置

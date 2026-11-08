@@ -33,7 +33,7 @@ if (targetPackage.name !== 'dsh-desktop-themes') {
   process.exit(1);
 }
 
-const files = ['lib/client.js', 'lib/index.js', 'package.json', 'cordis.patch.yml', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'docs/workspace.md', 'docs/screenshots/studio/mint-breeze-1280.png', 'docs/screenshots/studio/obsidian-gold-1920.png', 'docs/screenshots/studio/workspace-home-1280.png', 'docs/screenshots/studio/share-card.png'];
+const files = ['lib/client.js', 'lib/index.js', 'package.json', 'cordis.patch.yml', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'docs/workspace.md', 'docs/ai-theme-studio.md', 'docs/screenshots/studio/mint-breeze-1280.png', 'docs/screenshots/studio/obsidian-gold-1920.png', 'docs/screenshots/studio/workspace-home-1280.png', 'docs/screenshots/studio/share-card.png'];
 const backup=join(root,'tmp','desktop-backups',`${profile}-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 for (const file of files) {
   const existing=join(target,file);

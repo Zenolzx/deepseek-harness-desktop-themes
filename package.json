@@ -1,6 +1,6 @@
 {
   "name": "dsh-desktop-themes",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "DSH 工作环境：纸感、矿物、夜幕三套成品风格，独立工作模式与氛围、壁纸生成配色、可迁移风格包与专业主题工作室。",
   "keywords": [
     "deepseek-harness",
@@ -42,10 +42,12 @@
     "cordis.patch.yml",
     "THIRD_PARTY_NOTICES.md",
     "docs/workspace.md",
+    "docs/install.md",
     "docs/ai-theme-studio.md",
     "docs/screenshots/studio"
   ],
   "scripts": {
+    "package:release": "node scripts/package-release.mjs",
     "build": "node scripts/build.mjs",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",

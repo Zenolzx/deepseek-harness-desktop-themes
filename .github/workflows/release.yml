@@ -1,0 +1,55 @@
+name: Publish plugin release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --legacy-peer-deps
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run audit
+      - run: npm run build
+        env:
+          DTH_BUILD_ID: ${{ github.ref_name }}+${{ github.sha }}
+      - run: npm run package:release
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const tag = context.ref.replace('refs/tags/', '');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            if (tag !== `v${pkg.version}`) throw new Error('Tag/version mismatch');
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const body = changelog.split(/^# /m).find(section => section.startsWith(`${pkg.version} ·`));
+            if (!body) throw new Error('Missing version changelog');
+            const notes = body.trim() + '\n\n下载下方 `.tgz`，在 DSH 插件管理器中安装，然后完全退出并重新打开 DSH。已有用户也需要安装新版；不会自动替换远程电脑上的旧安装。\n\n[安装与升级说明](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/' + tag + '/docs/install.md)';
+            // Upload all assets to a draft before making the release public.
+            let release;
+            try {
+              release = (await github.rest.repos.getReleaseByTag({...context.repo, tag})).data;
+              if (!release.draft) { core.info('Release already published; leaving existing assets unchanged.'); return; }
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              release = (await github.rest.repos.createRelease({...context.repo, tag_name: tag, name: `DSH Desktop Themes ${pkg.version}`, body: notes, draft: true, prerelease: false})).data;
+            }
+            const names = [`dsh-desktop-themes-${pkg.version}.tgz`, 'dsh-desktop-themes.tgz', 'SHA256SUMS'];
+            for (const name of names) {
+              const data = fs.readFileSync(path.join('dist/release', name));
+              const old = release.assets.find(asset => asset.name === name);
+              if (old) await github.rest.repos.deleteReleaseAsset({...context.repo, asset_id: old.id});
+              await github.rest.repos.uploadReleaseAsset({...context.repo, release_id: release.id, name, data});
+            }
+            await github.rest.repos.updateRelease({...context.repo, release_id: release.id, body: notes, draft: false, make_latest: 'true'});

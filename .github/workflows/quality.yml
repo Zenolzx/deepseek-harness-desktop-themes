@@ -28,6 +28,7 @@ jobs:
           node-version: '22'
       - run: npm ci --ignore-scripts --legacy-peer-deps
       - run: npm run test:studio-browser
+      - run: npm run test:ai-studio-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
