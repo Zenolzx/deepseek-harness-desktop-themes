@@ -6,7 +6,7 @@
 
 外观工作室现提供 **AI 主题设计助手**：输入多句要求、添加参考图，多轮调整并预览，满意后保存应用。复用 DSH 的默认模型和凭据，支持本地会话恢复、版本回退与取消生成。[使用说明](docs/ai-theme-studio.md)。
 
-**安装或升级到 3.1.0：** [下载最新预构建安装包](https://github.com/liu-zhexi/deepseek-harness-desktop-themes/releases/latest/download/dsh-desktop-themes.tgz)，在 DSH 插件管理器中安装，然后完全退出并重新打开 DSH。[发布记录与校验文件](https://github.com/liu-zhexi/deepseek-harness-desktop-themes/releases/latest)。已有用户也需要安装新版，旧安装不会被远程自动替换；已有主题设置无需重置。[详细升级说明](docs/install.md#安装或升级到最新版)。
+**安装或升级到 3.1.0：** [下载最新预构建安装包](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest/download/dsh-desktop-themes.tgz)，在 DSH 插件管理器中安装，然后完全退出并重新打开 DSH。[发布记录与校验文件](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest)。已有用户也需要安装新版，旧安装不会被远程自动替换；已有主题设置无需重置。[详细升级说明](docs/install.md#安装或升级到最新版)。
 
 - 平台：**DSH Desktop（Electron）**；宿主进程侧负责配置持久化。Web profile 仍可加载同一构建，但 2.0 起只保证桌面端体验
 - 技术：TypeScript + React（客户端）+ Cordis（DSH 插件运行时）
@@ -113,7 +113,7 @@ npm run install:desktop   # 直接把 lib/*、package.json 写入 ~/.dsh/profile
 ```text
 请直接在我的电脑上安装或更新 DeepSeek Harness Desktop Themes，不要只告诉我操作步骤；请持续执行到验证成功。
 
-仓库：https://github.com/liu-zhexi/deepseek-harness-desktop-themes
+仓库：https://github.com/Zenolzx/deepseek-harness-desktop-themes
 
 要求：
 1. 识别 Windows、macOS 或 Linux，以及现有 Git、Node.js、npm、pnpm、dsh 环境。Node.js 要求 >= 20；缺少必要工具时，只从官方来源或 npm 安装稳定版本。需要管理员权限时向我请求授权。
