@@ -34,6 +34,7 @@ if (targetPackage.name !== 'dsh-desktop-themes') {
 }
 
 const files = ['lib/client.js', 'lib/index.js', 'package.json', 'cordis.patch.yml', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'docs/workspace.md', 'docs/ai-theme-studio.md', 'docs/screenshots/studio/mint-breeze-1280.png', 'docs/screenshots/studio/obsidian-gold-1920.png', 'docs/screenshots/studio/workspace-home-1280.png', 'docs/screenshots/studio/share-card.png'];
+files.push('docs/theme-creation-system.md',...['SKILL.md','agents/openai.yaml','references/design-rubric.md','references/assets.md','references/programs.md','references/tools.md','references/acceptance.md','references/evaluation-cases.md'].map(file=>'skills/dsh-theme-design/'+file));
 const backup=join(root,'tmp','desktop-backups',`${profile}-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 for (const file of files) {
   const existing=join(target,file);

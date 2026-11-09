@@ -4,17 +4,17 @@
 
 ## 安装或升级到最新版
 
-当前版本为 **3.1.3**，包含 AI 主题设计助手。
+当前版本为 **3.2.0**，包含 AI 主题设计助手。
 
 1. 从 [GitHub Releases](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest) 下载版本对应的 `.tgz` 安装包。也可以使用[固定下载入口](https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/latest/download/dsh-desktop-themes.tgz)，始终指向最新正式版本。
 2. 在 DSH 桌面端的插件管理器中选择该安装包，安装或更新同名插件；不要先卸载或清空配置。
 3. 完全退出 DSH Desktop 后重新打开，仅刷新页面不会加载新的宿主代码。
-4. 检查“设置 → 桌面外观 → 高级 → 关于与诊断”显示 3.1.3；进入外观工作室查看 AI 主题设计助手。
+4. 检查“设置 → 桌面外观 → 高级 → 关于与诊断”显示 3.2.0；进入外观工作室查看 AI 主题设计助手。
 
 CLI 用户也可使用不可变的版本地址升级，避免相同下载地址的缓存：
 
 ```bash
-dsh plugin --profile desktop add https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/download/v3.1.3/dsh-desktop-themes-3.1.3.tgz
+dsh plugin --profile desktop add https://github.com/Zenolzx/deepseek-harness-desktop-themes/releases/download/v3.2.0/dsh-desktop-themes-3.2.0.tgz
 ```
 
 如果网络或宿主版本不支持直接从 HTTPS 安装，先下载文件，再在插件管理器中选择 `.tgz`。

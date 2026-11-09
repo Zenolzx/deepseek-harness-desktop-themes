@@ -45,6 +45,7 @@ import type {
 } from './types.ts';
 import { SCHEMA_VERSION } from './types.ts';
 import { THEME_VISUAL_DEFAULTS } from '../themes/visual-defaults.ts';
+import { tryArtwork } from '../design/artwork.ts';
 
 const THEME_IDS: readonly string[] = [
   'quantum-blue',
@@ -303,6 +304,7 @@ function coerceCustomTheme(value: unknown, index: number): CustomThemeConfig {
     ? asString(src.id, `custom-${index + 1}`, 64)
     : `custom-${index + 1}`;
   return {
+    ...(src.artwork!==undefined?{artwork:tryArtwork(src.artwork)}:{}),
     id,
     name: asString(src.name, `Custom ${index + 1}`, 64),
     base: asString(src.base, 'quantum-blue', 64),

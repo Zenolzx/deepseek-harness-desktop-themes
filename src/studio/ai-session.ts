@@ -4,6 +4,7 @@ export interface DesignSession {
   id:'active'; version:1; messages:DesignMessage[]; versions:DesignVersion[]; selected:string;
   images:ReferenceImage[]; input:string; redesign:boolean; model?:ModelChoice; ownedWallpapers:string[];
   working?:DesignSnapshot;
+  ownedArtworkAssets?:string[];
 }
 let pending:Promise<unknown>=Promise.resolve();
 function transact<T>(mode:IDBTransactionMode,operation:(store:IDBObjectStore)=>IDBRequest<T>):Promise<T|undefined>{

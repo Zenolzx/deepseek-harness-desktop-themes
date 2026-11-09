@@ -21,7 +21,7 @@ const jsonStart=packed.stdout.search(/^\s*\[\s*\{/m);
 assert.ok(jsonStart>=0,'npm pack did not return a JSON package manifest');
 const info=JSON.parse(packed.stdout.slice(jsonStart))[0],files=info.files.map(file=>file.path);
 for(const required of ['lib/client.js','lib/index.js','cordis.patch.yml','package.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md','docs/ai-theme-studio.md'])assert.ok(files.includes(required),`missing ${required}`);
-for(const file of files)assert.ok(['lib/client.js','lib/index.js','cordis.patch.yml','package.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md'].includes(file)||file==='docs/workspace.md'||file==='docs/install.md'||file==='docs/ai-theme-studio.md'||/^docs\/screenshots\/studio\/[\w-]+\.png$/.test(file),`unreviewed package file: ${file}`);
+for(const file of files)assert.ok(['lib/client.js','lib/index.js','cordis.patch.yml','package.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md'].includes(file)||file==='docs/workspace.md'||file==='docs/install.md'||file==='docs/ai-theme-studio.md'||file==='docs/theme-creation-system.md'||/^skills\/dsh-theme-design\/(?:SKILL\.md|agents\/openai\.yaml|references\/[\w-]+\.md)$/.test(file)||/^docs\/screenshots\/studio\/[\w-]+\.png$/.test(file),`unreviewed package file: ${file}`);
 const versioned=join(output,info.filename),alias=join(output,'dsh-desktop-themes.tgz');
 copyFileSync(versioned,alias);
 const digest=createHash('sha256').update(readFileSync(versioned)).digest('hex');

@@ -50,6 +50,7 @@ async function produce() {
     format: 'esm',
     platform: 'node',
     packages: 'external',
+    define: {__DTH_DESIGN_SKILL__:JSON.stringify(['SKILL.md','references/design-rubric.md','references/assets.md','references/programs.md','references/acceptance.md'].map(file=>readFileSync(resolve(root,'skills/dsh-theme-design',file),'utf8')).join('\n\n'))},
     write: false,
   });
 

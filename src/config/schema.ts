@@ -148,6 +148,7 @@ const customThemeColorsSchema = z.object({
 });
 
 const customThemeSchema = z.object({
+  artwork: z.any(),
   id: z.string().default(''),
   name: z.string().default(''),
   base: z.string().default('quantum-blue'),

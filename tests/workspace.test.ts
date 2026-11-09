@@ -41,7 +41,7 @@ test('complete style bundle round-trips without exporting unrelated themes or ru
   assert.equal(bundle.config.wallpaper.path,'');assert.equal(bundle.config.customThemes.length,1);
   const current=createDefaultConfig();current.pet.enabled=true;current.performance.level='power-saver';
   const next=mergeStyleBundle(current,bundle);assert.equal(next.pet.enabled,true);assert.equal(next.performance.level,'power-saver');assert.equal(next.workspace.style,'mineral');assert.equal(next.customThemes.length,1);assert.equal(next.customThemes[0].name,draft.name);
-  assert.throws(()=>parseStyleBundle(JSON.stringify({...bundle,version:2})),/不支持/);
+  assert.throws(()=>parseStyleBundle(JSON.stringify({...bundle,version:3})),/不支持/);
   assert.throws(()=>parseStyleBundle(JSON.stringify({...bundle,wallpaper:{name:'x',data:'https://example.com/remote.png'}})),/壁纸/);
   assert.throws(()=>parseStyleBundle('{bad'));
 });

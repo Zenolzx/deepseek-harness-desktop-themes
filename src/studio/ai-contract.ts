@@ -1,19 +1,20 @@
 import type { CustomThemeConfig, DesktopThemesConfig } from '../config/types.ts';
 import { coerceConfig } from '../config/validation.ts';
 import { draftIssues, repairDraft } from './model.ts';
+import { relativeLuminance } from '../utils/color.ts';
 
 export const AI_CHANNEL = '/desktop-themes-ai';
 export const AI_API_PREFIX = 'desktop-themes-ai';
 export interface ModelChoice { provider: string; model: string }
 export interface DesignSnapshot { draft: CustomThemeConfig; environment: DesktopThemesConfig }
-export interface ReferenceImage { id: string; name: string; data: string }
+export interface ReferenceImage { id: string; name: string; data: string; allowInArtwork?: boolean }
 export interface DesignMessage { role: 'user' | 'assistant'; text: string }
 export interface DesignRequest {
   baseVersion: string; prompt: string; snapshot: DesignSnapshot;
   history: DesignMessage[]; images: ReferenceImage[]; model?: ModelChoice; redesign: boolean;
 }
 export interface DesignResult { baseVersion: string; snapshot: DesignSnapshot; summary: string; limitations: string[]; changes: string[] }
-export interface ModelCatalog { current: ModelChoice; models: Array<ModelChoice & { name: string; vision: boolean }>; imagesAvailable: boolean }
+export interface ModelCatalog { current: ModelChoice; models: Array<ModelChoice & { name: string; vision: boolean }>; imagesAvailable: boolean; creatorAvailable?: boolean }
 
 export const environmentKeys = ['workspace','font','appearance','wallpaper','glass','effects'] as const;
 const forbiddenWallpaper = ['path','sourceId','name'];
@@ -36,7 +37,7 @@ function checkAgainst(patch: Record<string, unknown>, normalized: Record<string,
   }
 }
 /** Reject before coercion can silently replace invalid model output with defaults. */
-export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersion: string, options:{repairReadability?:boolean}={}): DesignResult {
+export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersion: string, options:{repairReadability?:boolean;adaptBase?:boolean}={}): DesignResult {
   if (!object(raw)) reject('模型必须返回 JSON 对象');
   exactKeys(raw,['theme','environment','summary','limitations'],'结果');
   if (typeof raw.summary!=='string' || !raw.summary.trim() || raw.summary.length>4000) reject('缺少改动说明');
@@ -67,6 +68,10 @@ export function applyDesignOutput(base: DesignSnapshot, raw: unknown, baseVersio
     }
   }
   let draft=mergeFields(base.draft as unknown as Record<string,unknown>,theme) as unknown as CustomThemeConfig;
+  if(options.adaptBase&&object(theme.colors)&&theme.colors.background!==undefined){
+    const light=relativeLuminance(draft.colors.background)>.179;
+    draft={...draft,base:light?'mint-breeze':'quantum-blue'};
+  }
   const environment=mergeFields(base.environment as unknown as Record<string,unknown>,env) as unknown as DesktopThemesConfig;
   if(environment.wallpaper.enabled && !environment.wallpaper.sourceId && !environment.wallpaper.path) reject('请先选择实际壁纸，再启用壁纸');
   const normalized=coerceConfig({...environment,theme:'custom-ai-validation',customThemes:[{...draft,id:'custom-ai-validation'}]});

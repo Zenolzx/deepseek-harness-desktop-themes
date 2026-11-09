@@ -43,6 +43,7 @@ import { loadConfigSnapshot, saveConfigSnapshot } from '../storage/config-store.
 import { disposeFontFaces, hydrateInstalledFonts } from '../fonts/runtime.ts';
 import { buildWorkspaceCss } from '../workspace/recipes.ts';
 import { createAiTransport } from '../studio/ai-client.ts';
+import { ArtworkRuntime } from '../design/runtime.ts';
 
 const PLUGIN_ID = 'dsh-desktop-themes';
 const OVERRIDE_SOURCE = PLUGIN_ID;
@@ -223,6 +224,8 @@ export function apply(ctx: ClientContext): void {
 
   // ---- Effects engine ------------------------------------------------------
   const effects = new EffectsEngine();
+  const artworkRuntime = new ArtworkRuntime();
+  ctx.effect(()=>()=>artworkRuntime.dispose(),'desktop-themes: artwork lifecycle');
 
   // ---- Accessibility / performance environment ----------------------------
   let reducedTransparency = prefersReducedTransparency();
@@ -349,6 +352,7 @@ export function apply(ctx: ClientContext): void {
 
   // ---- Effects application -------------------------------------------------
   const applyEffects = (config: DesktopThemesConfig) => {
+    artworkRuntime.update(config.customThemes.find(t=>t.id===config.theme)?.artwork,config.performance.level==='power-saver');
     const palette = resolvePalette(config.theme, config.customThemes);
     let particles: string[];
     let glows: string[];

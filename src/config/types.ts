@@ -240,6 +240,7 @@ export interface CustomThemeColors {
 }
 
 export interface CustomThemeConfig {
+  artwork?: import('../design/artwork.ts').Artwork;
   id: string;
   name: string;
   /** Built-in theme id used as the starting point. */

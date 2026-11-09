@@ -7,6 +7,9 @@ import type { DesignMessage, DesignResult, DesignSnapshot, ModelCatalog, Referen
 import { deleteDesignSession, loadDesignSession, saveDesignSession, type DesignSession } from './ai-session.ts';
 import { deleteWallpaper, getWallpaper, newWallpaperId, putWallpaper } from '../storage/wallpaper-store.ts';
 import { hydrateBuiltinWallpaper } from '../client/theme-presets.ts';
+import { inspectArtwork } from '../design/inspect-client.ts';
+import { persistArtwork, removeArtworkAsset } from '../design/assets.ts';
+import type { CreatorReply } from '../design/creator-contract.ts';
 
 interface Props { snapshot:DesignSnapshot; transport?:AiTransport; apply(snapshot:DesignSnapshot):void; official():DesktopThemesConfig }
 function fresh(snapshot:DesignSnapshot):DesignSession {
@@ -22,8 +25,9 @@ export function AiDesigner(props:Props){
   const live=useRef(props);live.current=props;
   const generation=useRef(0),controller=useRef<AbortController|null>(null),mounted=useRef(true);
   const urls=useRef(new Map<string,string>());
+  const pendingRun=useRef<string>();
   const snapshotKey=JSON.stringify(props.snapshot);
-  const cancel=()=>{generation.current++;controller.current?.abort();controller.current=null;setBusy(false);};
+  const cancel=()=>{generation.current++;controller.current?.abort();controller.current=null;if(pendingRun.current){void live.current.transport?.call('cancel',{runId:pendingRun.current}).catch(()=>undefined);pendingRun.current=undefined;}setBusy(false);};
   useEffect(()=>{mounted.current=true;let disposed=false;
     if(!props.transport){setReady(true);return ()=>{mounted.current=false;};}
     void loadDesignSession().then(async saved=>{
@@ -72,8 +76,27 @@ export function AiDesigner(props:Props){
       if(token!==generation.current||!mounted.current)return;
       setCatalog(current);
       const model=session.model ?? current.current;
-      if(session.images.length&&(!current.imagesAvailable||!current.models.some(m=>m.provider===model.provider&&m.model===model.model&&m.vision)))throw new Error('当前模型或宿主服务不支持图片，请选择支持看图的模型；输入已保留。');
-      const result=await props.transport.call<DesignResult>('generate',{baseVersion,prompt,snapshot:base,history:session.messages.slice(-40).map(m=>({...m,text:m.text.slice(0,12000)})),images:session.images,model,redesign:session.redesign},abort.signal);
+      if(session.images.length&&(!current.imagesAvailable||!current.models.some(m=>m.vision&&(current.creatorAvailable||m.provider===model.provider&&m.model===model.model))))throw new Error('当前模型或宿主服务不支持图片，请配置看图模型；输入已保留。');
+      const request={baseVersion,prompt,snapshot:base,history:session.messages.slice(-40).map(m=>({...m,text:m.text.slice(0,12000)})),images:session.images,model,redesign:session.redesign};
+      let result:DesignResult;
+      if(current.creatorAvailable){
+        let reply=await props.transport.call<CreatorReply>('create',request,abort.signal);
+        while(reply.kind==='render'){
+          pendingRun.current=reply.runId;
+          if(token!==generation.current||!mounted.current||abort.signal.aborted){void props.transport.call('cancel',{runId:reply.runId}).catch(()=>undefined);return;}
+          setStatus('正在实际绘制与检查多尺寸预览；必要时自动修正…');
+          const inspection=await inspectArtwork(reply.snapshot,abort.signal,hashes=>{if(mounted.current)setSession(old=>({...old,ownedArtworkAssets:[...new Set([...(old.ownedArtworkAssets ?? []),...hashes])]}));});
+          reply=await props.transport.call<CreatorReply>('inspect',{runId:reply.runId,nonce:reply.nonce,digest:reply.digest,inspection},abort.signal);
+          pendingRun.current=undefined;
+        }
+        if(reply.kind==='question'){
+          if(token!==generation.current||!mounted.current||abort.signal.aborted)return;
+          setSession(old=>({...old,input:'',messages:[...old.messages,{role:'user',text:prompt},{role:'assistant',text:reply.question+'\n推荐：'+reply.recommendation}]}));
+          setStatus('补充这一点后继续；也可以回复“按推荐处理”。');return;
+        }
+        result=reply.result;
+        if(result.snapshot.draft.artwork){const persisted=await persistArtwork(result.snapshot.draft.artwork);result.snapshot.draft.artwork=persisted.artwork;}
+      }else result=await props.transport.call<DesignResult>('generate',request,abort.signal);
       if(!mounted.current||token!==generation.current||JSON.stringify(live.current.snapshot)!==baseKey||result.baseVersion!==baseVersion)return;
       const messages:DesignMessage[]=[...session.messages,{role:'user',text:prompt},{role:'assistant',text:result.summary+(result.limitations.length?'\n限制：'+result.limitations.join('；'):'')}];
       const id=crypto.randomUUID();
@@ -111,20 +134,22 @@ export function AiDesigner(props:Props){
     try{
       await deleteDesignSession();
       for(const id of session.ownedWallpapers)if(live.current.official().wallpaper.sourceId!==id){await deleteWallpaper(id);const url=urls.current.get(id);if(url)URL.revokeObjectURL(url);urls.current.delete(id);}
+      const savedAssets=new Set(live.current.official().customThemes.flatMap(t=>t.artwork?.assets.map(a=>a.sha256) ?? []));
+      for(const hash of session.ownedArtworkAssets ?? [])if(!savedAssets.has(hash))await removeArtworkAsset(hash);
       const c=live.current.official(),snapshot={draft:draftFromTheme(c.theme,c.customThemes),environment:structuredClone(c)};
       live.current.apply(snapshot);setSession(fresh(snapshot));setStorageError('');setStatus('会话、参考图与历史草稿已删除，已回到当前主题。');
     }catch(e){setStatus(e instanceof Error?e.message:'删除失败');}
   };
   const selectedModel=session.model ?? catalog?.current;
-  const vision=!!catalog?.models.some(m=>m.provider===selectedModel?.provider&&m.model===selectedModel?.model&&m.vision);
+  const vision=!!catalog?.models.some(m=>m.vision&&(catalog.creatorAvailable||m.provider===selectedModel?.provider&&m.model===selectedModel?.model));
   return <section className="dth-ai" aria-label="AI 主题设计助手" aria-busy={busy}>
     <div className="dth-ai-heading"><div><span className="dth-studio-eyebrow">AI THEME DESIGN</span><h2>一起设计你的主题</h2></div><button disabled={!ready} onClick={()=>void removeSession()}>删除设计会话</button></div>
-    <p>描述风格、颜色与阅读感受。参考图用于模仿外观，实际壁纸单独选择。</p>
+    <p>描述你想表达的意向，也可以添加参考图。AI 会按需追问，创作构图、图案与动态，再检查实际预览。</p>
     <label>设计模型<select aria-label="设计模型" disabled={busy} value={session.model?JSON.stringify(session.model):''} onChange={e=>update({model:e.target.value?JSON.parse(e.target.value):undefined})}><option value="">沿用 DSH 默认模型{catalog?` · ${catalog.current.model}`:''}</option>{catalog?.models.map(m=><option key={JSON.stringify([m.provider,m.model])} value={JSON.stringify({provider:m.provider,model:m.model})}>{m.provider} / {m.name}{m.vision?' · 支持看图':''}</option>)}</select></label>
     <button disabled={busy||refreshingModels||!props.transport} onClick={()=>void refreshModels()}>{refreshingModels?'正在刷新…':'刷新模型列表'}</button>
     <div className="dth-ai-messages" aria-label="主题设计对话">{session.messages.map((m,i)=><div className={`dth-ai-message is-${m.role}`} key={i}><strong>{m.role==='user'?'你':'主题设计助手'}</strong><p>{m.text}</p></div>)}</div>
     <label>设计要求<textarea aria-label="设计要求" rows={4} maxLength={12000} disabled={!ready||busy} value={session.input} onChange={e=>update({input:e.target.value})} placeholder="例如：参考图片的暖灰和纸张质感。正文要清楚，强调色用低饱和蓝色。保留当前字体。"/></label>
-    <div className="dth-ai-images" aria-label="本轮发送的参考图">{session.images.map(image=><figure key={image.id}><img src={image.data} alt={`参考图：${image.name}`}/><figcaption>{image.name}</figcaption><button disabled={busy} onClick={()=>update({images:session.images.filter(i=>i.id!==image.id)})} aria-label={`移除参考图 ${image.name}`}>移除</button></figure>)}</div>
+    <div className="dth-ai-images" aria-label="本轮发送的参考图">{session.images.map(image=><figure key={image.id}><img src={image.data} alt={`参考图：${image.name}`}/><figcaption>{image.name}</figcaption>{catalog?.creatorAvailable&&<label className="dth-ai-check"><input type="checkbox" checked={image.allowInArtwork===true} disabled={busy} onChange={e=>update({images:session.images.map(i=>i.id===image.id?{...i,allowInArtwork:e.target.checked}:i)})}/>允许作为作品素材使用</label>}<button disabled={busy} onClick={()=>update({images:session.images.filter(i=>i.id!==image.id)})} aria-label={`移除参考图 ${image.name}`}>移除</button></figure>)}</div>
     <div className="dth-studio-actions"><label className="dth-studio-file">添加参考图<input aria-label="添加参考图" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!ready||busy||loadingImage||session.images.length>=3} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void readImage(f,false);}}/></label><label className="dth-studio-file">选择实际壁纸<input aria-label="选择实际壁纸" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!ready||busy||loadingImage} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void readImage(f,true);}}/></label></div>
     {!!session.images.length&&<p className="dth-studio-note">提交时将发送上方 {session.images.length} 张参考图。{!vision?'当前模型未确认支持看图，请选择支持看图的模型。':''}{catalog&&!catalog.imagesAvailable?'宿主图片服务不可用。':''}</p>}
     <label className="dth-ai-check"><input type="checkbox" checked={session.redesign} disabled={busy} onChange={e=>update({redesign:e.target.checked})}/>重新设计整套主题（默认只改本轮要求）</label>

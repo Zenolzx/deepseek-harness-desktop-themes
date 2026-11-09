@@ -3,6 +3,8 @@ import { coerceConfig } from '../config/validation.ts';
 import { draftIssues, draftPalette } from '../studio/model.ts';
 import { getWallpaper } from '../storage/wallpaper-store.ts';
 import { createDefaultConfig } from '../config/defaults.ts';
+import { parseArtwork, loadArtworkImages, drawArtwork } from '../design/artwork.ts';
+import { embedArtworkAssets, resolveArtworkAsset } from '../design/assets.ts';
 
 export function downloadFile(text: BlobPart, name: string, type='application/json') {
   const url=URL.createObjectURL(new Blob([text],{type}));
@@ -10,14 +12,14 @@ export function downloadFile(text: BlobPart, name: string, type='application/jso
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 export const PACK_LIMIT=38*1024*1024;
-export interface StyleBundle { kind:'dsh-style-pack'; version:1; name:string; config:DesktopThemesConfig; wallpaper?:{name:string;data:string} }
+export interface StyleBundle { kind:'dsh-style-pack'; version:1|2; name:string; config:DesktopThemesConfig; wallpaper?:{name:string;data:string} }
 
 export async function exportStyleBundle(config:DesktopThemesConfig,draft:CustomThemeConfig,embedded?:StyleBundle['wallpaper']):Promise<string> {
   if(draftIssues(draft).length)throw new Error('请先修复可读性再分享');
-  const theme={...draft,id:'custom-shared'};
+  const theme={...draft,id:'custom-shared',...(draft.artwork?{artwork:await embedArtworkAssets(draft.artwork)}:{})};
   const portable=coerceConfig({...createDefaultConfig(),workspace:config.workspace,font:config.font,appearance:config.appearance,wallpaper:config.wallpaper,glass:config.glass,effects:config.effects,theme:theme.id,customThemes:[theme],recentWallpapers:[],themeSchedule:{enabled:false,family:''}});
   portable.wallpaper.path='';
-  const bundle:StyleBundle={kind:'dsh-style-pack',version:1,name:draft.name,config:portable,...(embedded?{wallpaper:embedded}:{})};
+  const bundle:StyleBundle={kind:'dsh-style-pack',version:draft.artwork?2:1,name:draft.name,config:portable,...(embedded?{wallpaper:embedded}:{})};
   const id=config.wallpaper.sourceId;
   if(id && !id.startsWith('builtin:')) {
     const record=await getWallpaper(id);
@@ -34,7 +36,8 @@ export async function exportStyleBundle(config:DesktopThemesConfig,draft:CustomT
 export function parseStyleBundle(text:string):StyleBundle {
   if(text.length>PACK_LIMIT)throw new Error('风格包超过 38 MB');
   const input=JSON.parse(text);
-  if(input?.kind!=='dsh-style-pack'||input.version!==1||!input.config||typeof input.name!=='string'||input.name.length>64)throw new Error('不支持的风格包');
+  if(input?.kind!=='dsh-style-pack'||![1,2].includes(input.version)||!input.config||typeof input.name!=='string'||input.name.length>64)throw new Error('不支持的风格包');
+  for(const theme of Array.isArray(input.config.customThemes)?input.config.customThemes:[])if(theme.artwork!==undefined){if(input.version!==2)throw new Error('程序绘制主题需要风格包版本2');const art=parseArtwork(theme.artwork);if(art.assets.some(a=>!a.data))throw new Error('风格包缺少作品素材字节');}
   const config=coerceConfig(input.config);
   const draft=config.customThemes.find(t=>t.id===config.theme);
   if(!draft||draftIssues(draft).length)throw new Error('风格包主题缺失或可读性不合格');
@@ -47,7 +50,7 @@ export function parseStyleBundle(text:string):StyleBundle {
     if(typeof input.wallpaper.name!=='string'||input.wallpaper.name.length>256||typeof input.wallpaper.data!=='string'||!/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.wallpaper.data))throw new Error('无效的风格包壁纸');
     wallpaper={name:input.wallpaper.name,data:input.wallpaper.data};
   }
-  return {kind:'dsh-style-pack',version:1,name:input.name,config,wallpaper};
+  return {kind:'dsh-style-pack',version:input.version,name:input.name,config,wallpaper};
 }
 
 /** Import appearance only; never replace personal companions, performance or unrelated themes. */
@@ -59,12 +62,13 @@ export function mergeStyleBundle(current:DesktopThemesConfig,bundle:StyleBundle,
 }
 
 /** A portable, representative preview card; contains no private conversation data. */
-export function downloadPreviewCard(draft:CustomThemeConfig,config:DesktopThemesConfig) {
+export async function downloadPreviewCard(draft:CustomThemeConfig,config:DesktopThemesConfig) {
   const p=draftPalette(draft),canvas=document.createElement('canvas');canvas.width=1600;canvas.height=1000;
   const c=canvas.getContext('2d');if(!c)throw new Error('无法生成预览卡');
   const rect=(x:number,y:number,w:number,h:number,color:string,r=16)=>{c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();};
   rect(0,0,1600,1000,p.bgBase,0);
   const glow=c.createRadialGradient(1250,70,0,1250,70,1000);glow.addColorStop(0,p.accent+'38');glow.addColorStop(1,p.bgBase+'00');c.fillStyle=glow;c.fillRect(0,0,1600,1000);
+  if(draft.artwork){drawArtwork(c,draft.artwork,1600,1000,0,await loadArtworkImages(draft.artwork,resolveArtworkAsset));rect(56,36,1488,178,p.bgBase,20);rect(56,855,1488,126,p.bgBase,20);}
   const text=(s:string,x:number,y:number,size=24,color=p.textPrimary)=>{c.fillStyle=color;c.font=`${size}px "Segoe UI","Microsoft YaHei",sans-serif`;c.fillText(s,x,y,1520-x);};
   text('DSH  /  WORKSPACE COLLECTION',80,85,18,p.accent);text(draft.name,80,150,42);
   text(`${config.workspace.style.toUpperCase()}  ·  ${config.workspace.mode}  ·  ${config.workspace.ambience}`,80,192,18,p.textSecondary);
