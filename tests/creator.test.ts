@@ -47,6 +47,13 @@ test('malformed JSON is repaired, provider failures stop immediately',async()=>{
   const valid=creator(['not json',design()]);assert.equal((await valid.runtime.start(request(),selection,new AbortController().signal)).kind,'render');assert.equal(valid.calls(),2);
   const offline=creator([]);await assert.rejects(()=>offline.runtime.start(request(),selection,new AbortController().signal),/unexpected call/);assert.equal(offline.calls(),1);
 });
+test('non-visual structural critique can reject misleading motion claims without claiming image review',async()=>{
+  const {runtime}=creator([design(),{pass:false,evidence:['仅整体平移，未改变控制点'],issues:['请让路径形态随时间改变']},design(),{pass:true,evidence:['控制点含时间表达式'],issues:[]}]);
+  const signal=new AbortController().signal,first=render(await runtime.start(request(),selection,signal));
+  const report={...inspection(),signals:[{id:'contours',coverage:.01,peakDelta:.03,motion:'geometry' as const}]};
+  const second=render(await runtime.inspect({...first,inspection:report},signal)),complete=await runtime.inspect({...second,inspection:report},signal);
+  assert.equal(complete.kind,'complete');if(complete.kind==='complete'){assert.equal(complete.review,'manual');assert.match(complete.evidence.join(''),/非视觉验收/);}
+});
 test('visual collaborator receives real captures; failing findings require a fresh rendered revision',async()=>{
   const outputs:unknown[]=[design(),{pass:false,evidence:['边缘线条过密'],issues:['减少边缘线条']},design(),{pass:true,evidence:['线条与稳定阅读面清楚分离'],issues:[]}];
   let uploads=0;

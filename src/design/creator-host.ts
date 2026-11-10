@@ -27,8 +27,8 @@ export class ThemeCreator {
 theme仅允许name、colors(background,panel,text,primary,accent,particle,glow)、syntax、states(success,warning,danger)、ansi(16色)，颜色HEX。不能改id/base、任意CSS/JS/布局。environment仅允许当前快照workspace,font,appearance,wallpaper,glass,effects已有字段，不能修改wallpaper.path/sourceId/name或安装字体。保留用户没要求改的字段；没有壁纸不能启用wallpaper。使用原创绘制时旧effects应关闭以免两层动态干扰。七项决定应说明意向到图层/参数的映射、作用区域、检查方法、未知/局限；不能以装饰替代功能状态设计。
 ${APPEARANCE_GUIDE}
 ${DRAWING_GUIDE}
-artwork.assets仅输出使用到的登记ID字符串数组，运行时填充真实来源与字节。参考图未经明确允许绝不能进入作品；不用的资产不打包。程序绘制不需要现成素材。仅Canvas2D组合，不提供真实折射、模糊滤镜、图片生成服务或任意像素采样；玻璃材质可由environment.glass控制。
-运行时随后将实际渲染，不得自称已看见画面或已验收。实际预览与宿主DOM保护区不同，需说明适用范围。`,messages,maxTokens:16000,signal});}catch(error){throw new ModelCallFailure(error instanceof Error?error.message:String(error));}
+artwork.assets仅输出使用到的登记ID字符串数组，运行时填充真实来源与字节。参考图未经明确允许绝不能进入作品；不用的资产不打包。程序绘制不需要现成素材。仅Canvas2D组合，可柔化生成图层，不提供真实折射、图片生成服务或任意像素采样；玻璃材质可由environment.glass控制。
+运行时随后将实际渲染，不得自称已看见画面或已验收。实际预览必须保持与宿主相同的背景在下、文字控件在上的合成关系，不得使用文字镂空遮罩。参考图要落实到可见形态；不得用几条线或命名代替主体意向。`,messages,maxTokens:16000,signal});}catch(error){throw new ModelCallFailure(error instanceof Error?error.message:String(error));}
     return json(output);
   }
   async start(request:DesignRequest,selection:ModelChoice,signal:AbortSignal):Promise<CreatorReply>{
@@ -103,6 +103,7 @@ artwork.assets仅输出使用到的登记ID字符串数组，运行时填充真�
     if(!run||run.expires<Date.now()||raw.nonce!==run.nonce||raw.digest!==run.digest||run.busy)throw new Error('验收任务已过期、重复或版本不一致');
     run.busy=true;this.runs.delete(raw.runId); // Single-use evidence capability, never supplied by the model.
     const report=readInspection(raw.inspection,run.result.snapshot.draft.artwork!.duration);
+    if(report.signals&&(report.signals.length!==run.result.snapshot.draft.artwork!.layers.length||report.signals.some((s,i)=>s.id!==run.result.snapshot.draft.artwork!.layers[i].id)))throw new Error('图层测量与候选版本不一致');
     const failures=[...report.errors];
     if(!report.roundTrip)failures.push('持久化往返校验失败');
     if(report.samples.some(s=>s.frameMs>30))failures.push('绘制帧耗时超过30ms，请降低实例和计算量');
@@ -117,6 +118,14 @@ artwork.assets仅输出使用到的登记ID字符串数组，运行时填充真�
           visual=response.evidence.join('；');review='visual';
           if(!response.pass||response.issues.length){if(!response.issues.length)throw new Error('视觉报告缺少问题依据');failures.push(...response.issues as string[]);}
         }catch(error){if(signal.aborted)throw error;review='manual';visual=`视觉验收不可用，需人工审阅：${error instanceof Error?error.message:String(error)}`;}
+      }
+      if(review==='manual'&&report.signals){
+        try{
+          const critique=json(await this.services.collect(this.services.llm,{...run.selection,system:'你是程序设计一致性审查员，没有看到图像，不得自称视觉验收。根据原始意向、实际程序和浏览器测量，判断实现是否足以支持设计说明。coverage是该层实际合成后改变至少3/255颜色的像素比例，peakDelta为最大颜色变化；小图测量可能忽略细线，不单凭低比例否定细节。motion=translation仅整体移动，geometry才有控制点/尺度/旋转变化，opacity仅明暗变化；这些都不单独证明某种具体自然效果。名称不能证明意向实现。纯色极简可无图层；非极简主体仅用几条近乎不可见的细线、以整体平移宣称形变/流动，应指出具体不符并要求修正。只返回JSON {pass:boolean,evidence:[程序/测量的具体依据],issues:[需要修正的具体问题]}。缺乏画面证据的审美未知项交给人工，不要伪造已通过视觉检查。',messages:[message(JSON.stringify({brief:run.request.prompt,history:run.request.history.slice(-8),artwork:{...run.result.snapshot.draft.artwork,assets:run.result.snapshot.draft.artwork!.assets.map(a=>({id:a.id,name:a.name}))},signals:report.signals}))],maxTokens:2200,signal}));
+          if(!object(critique)||typeof critique.pass!=='boolean'||!Array.isArray(critique.evidence)||!critique.evidence.length||!critique.evidence.every(s=>typeof s==='string')||!Array.isArray(critique.issues)||!critique.issues.every(s=>typeof s==='string')||JSON.stringify(critique).length>12000||!critique.pass&&!critique.issues.length)throw new Error('结构意向审查报告无效');
+          if(!critique.pass||critique.issues.length)failures.push(...critique.issues as string[]);
+          visual+='；结构意向检查：'+critique.evidence.join('；')+'（非视觉验收）';
+        }catch(error){if(signal.aborted)throw error;visual+='；结构意向检查未完成：'+(error instanceof Error?error.message:String(error));}
       }
     }
     if(failures.length){
@@ -139,6 +148,7 @@ export function readInspection(raw:unknown,duration:number):Inspection{
     const s=raw.samples[i],expected=matrix[i];
     if(!object(s)||Object.entries(expected).some(([k,v])=>s[k]!==v)||typeof s.frameMs!=='number'||!Number.isFinite(s.frameMs)||s.frameMs<0||typeof s.image!=='string'||s.image.length>2*1024*1024||!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(s.image))throw new Error('渲染截图、相位或测量数据无效');
   }
+  if(raw.signals!==undefined&&(!Array.isArray(raw.signals)||raw.signals.length>24||raw.signals.some(s=>!object(s)||typeof s.id!=='string'||typeof s.coverage!=='number'||!Number.isFinite(s.coverage)||s.coverage<0||s.coverage>1||typeof s.peakDelta!=='number'||!Number.isFinite(s.peakDelta)||s.peakDelta<0||s.peakDelta>1||!['static','translation','geometry','opacity'].includes(String(s.motion)))))throw new Error('图层测量报告无效');
   return raw as unknown as Inspection;
 }
 

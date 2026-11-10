@@ -287,7 +287,17 @@ export function apply(ctx: ClientContext): void {
     }
     // OS "reduce transparency" wins over the plugin preference: the product's
     // own opaque surfaces are the safest fallback.
-    if (theme === undefined || reducedTransparency || !isTransparencyActive(config.appearance)) return;
+    if (theme === undefined || reducedTransparency) return;
+    const artwork=config.customThemes.find(t=>t.id===config.theme)?.artwork;
+    if(artwork){
+      const palette=resolvePalette(config.theme,config.customThemes);
+      if(palette)transparencyDisposer=theme.overrideTokens(OVERRIDE_SOURCE,{
+        '--dsw-alias-bg-base':{light:'transparent',dark:'transparent'},
+        ...Object.fromEntries([['--dsw-alias-bg-layer-1',palette.bgSurface],['--dsw-alias-bg-layer-2',palette.bgSurface2],['--dsw-alias-bg-layer-3',palette.bgSurface3],['--dsw-specific-input-major',palette.bgSurface2],['--dsw-specific-menu',palette.bgSurface3],['--dsw-alias-bg-overlay',palette.bgOverlay]].map(([key,value])=>[key,{light:value,dark:value}])),
+      });
+      return;
+    }
+    if(!isTransparencyActive(config.appearance))return;
     transparencyDisposer = theme.overrideTokens(
       OVERRIDE_SOURCE,
       buildTransparencyOverrides(config.appearance, activeThemeId, config.wallpaper.enabled, config.customThemes),

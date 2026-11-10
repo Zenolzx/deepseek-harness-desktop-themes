@@ -5,11 +5,12 @@ import { draftIssues, draftPalette } from '../studio/model.ts';
 import { drawArtwork, loadArtworkImages, parseArtwork } from './artwork.ts';
 import { persistArtwork, resolveArtworkAsset } from './assets.ts';
 import type { Inspection } from './creator-contract.ts';
+import { measureLayerSignals } from './signals.ts';
 
 /** Captures real Canvas2D output and stable reading samples; never real conversations. */
 export async function inspectArtwork(snapshot:DesignSnapshot,signal:AbortSignal,onCreated:(hashes:string[])=>void=()=>{}):Promise<Inspection>{
   const art=parseArtwork(snapshot.draft.artwork),images=await loadArtworkImages(art,resolveArtworkAsset);
-  const report:Inspection={samples:[],roundTrip:false,errors:draftIssues(snapshot.draft)};
+  const report:Inspection={samples:[],roundTrip:false,errors:draftIssues(snapshot.draft),signals:measureLayerSignals(art,images)};
   const persisted=await persistArtwork(art);
   if(persisted.created.length)onCreated(persisted.created);
   const reloaded=coerceConfig({...snapshot.environment,theme:'custom-inspection',customThemes:[{...snapshot.draft,id:'custom-inspection',artwork:persisted.artwork}]}).customThemes[0];

@@ -1,0 +1,45 @@
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+import { createServer } from 'node:http';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import assert from 'node:assert/strict';
+const runtime=createRequire(join(process.env.DTH_RUNTIME_NODE_MODULES || join(homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'),'playwright/package.json'));
+const {chromium}=runtime('playwright');
+mkdirSync('tmp/artwork-scroll',{recursive:true});
+await build({entryPoints:['scripts/runtime-preview.tsx'],outfile:'tmp/artwork-scroll/app.js',bundle:true,format:'iife',loader:{'.css':'text','.png':'dataurl','.svg':'dataurl','.jpg':'dataurl'},jsx:'automatic'});
+const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url?.startsWith('/app.js')?'text/javascript':'text/html');res.end(req.url?.startsWith('/app.js')?readFileSync('tmp/artwork-scroll/app.js'):'<!doctype html><html lang="zh-CN"><meta charset="utf-8"><div id="root"></div><script src="/app.js"></script></html>');});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+let browser;
+try{
+  browser=await chromium.launch({headless:true,channel:'msedge'});
+  const page=await browser.newPage({viewport:{width:1920,height:1080},reducedMotion:'reduce'}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));await page.goto(`http://127.0.0.1:${server.address().port}/?scroll=1`);
+  await page.locator('.dth-artwork-runtime').waitFor();await page.waitForTimeout(200);
+  const before=await page.evaluate(()=>{
+    const canvas=document.querySelector('.dth-artwork-runtime');
+    window.__rectReads=0;const original=Element.prototype.getBoundingClientRect;Element.prototype.getBoundingClientRect=function(){window.__rectReads++;return original.call(this);};
+    const originalRange=Range.prototype.getClientRects;Range.prototype.getClientRects=function(){window.__rectReads++;return originalRange.call(this);};
+    return {image:canvas.toDataURL(),z:getComputedStyle(canvas).zIndex,rootZ:getComputedStyle(document.getElementById('root')).zIndex,base:getComputedStyle(document.documentElement).getPropertyValue('--dsw-alias-bg-base').trim(),input:getComputedStyle(document.documentElement).getPropertyValue('--dsw-specific-input-major').trim()};
+  });
+  assert.equal(before.z,'0');assert.equal(before.rootZ,'1');assert.equal(before.base,'transparent');assert.match(before.input,/^#[a-f0-9]{6}$/i,'controls must retain stable surfaces');
+  await page.screenshot({path:'tmp/artwork-scroll/before.png'});
+  const started=Date.now();
+  for(let i=0;i<100;i++)await page.evaluate(i=>{document.getElementById('scroll-pane').scrollTop=(i%2?i:100-i)*90;},i);
+  await page.waitForTimeout(250);
+  const after=await page.evaluate(()=>({image:document.querySelector('.dth-artwork-runtime').toDataURL(),rectReads:window.__rectReads}));
+  assert.equal(after.image,before.image,'scrolling cannot change or punch holes in a static background');
+  assert.equal(after.rectReads,0,'scrolling cannot scan text ranges or cause layout reads');
+  await page.screenshot({path:'tmp/artwork-scroll/after.png'});
+  await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForTimeout(300);
+  const dynamic=await page.evaluate(()=>({image:document.querySelector('.dth-artwork-runtime').toDataURL(),phase:document.querySelector('.dth-artwork-runtime').dataset.phase}));
+  assert.ok(Number(dynamic.phase)>0);assert.notEqual(dynamic.image,before.image,'motion must resume independently of scrolling');
+  await page.goto(`http://127.0.0.1:${server.address().port}/?scroll=1&deforming=1`);await page.locator('.dth-artwork-runtime').waitFor();await page.waitForTimeout(200);
+  await page.screenshot({path:'tmp/artwork-scroll/deforming.png'});
+  const measured=await page.evaluate(()=>({ms:Number(document.querySelector('.dth-artwork-runtime').dataset.frameMs),degraded:document.querySelector('.dth-artwork-runtime').dataset.degraded==='true'}));
+  assert.ok(measured.ms<30,'deforming regression must stay within frame budget');assert.equal(measured.degraded,false);
+  await page.evaluate(()=>window.__runtime.dispose());assert.equal(await page.locator('.dth-artwork-runtime').count(),0);
+  assert.deepEqual(errors,[]);
+  console.log(`Actual presenter regression passed: reported light theme, stable control colors, 100 scroll updates, no geometry scans or holes, motion restart, disposal. Deforming frame: ${measured.ms}ms.`);
+}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}

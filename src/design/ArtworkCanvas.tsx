@@ -20,7 +20,7 @@ export function ArtworkCanvas({artwork,still=false,time=0,className=''}:{artwork
         const elapsed=still||motion.matches||degraded?time:(now-start)/1000;
         const ms=drawArtwork(ctx,artwork,canvas.width,canvas.height,elapsed,images);
         canvas.dataset.frameMs=ms.toFixed(2);canvas.dataset.phase=elapsed.toFixed(2);canvas.dataset.degraded=String(degraded);
-        if(ms>30&&++slow>=5){degraded=true;dirty=true;setError('已采用静态预览以保持流畅');}
+        slow=ms>30?slow+1:0;if(slow>=5){degraded=true;dirty=true;setError('已采用静态预览以保持流畅');}
       };
       frame(performance.now()+34);
     }).catch(e=>{if(!disposed)setError(e instanceof Error?e.message:'作品素材读取失败');});

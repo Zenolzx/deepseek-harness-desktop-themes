@@ -1,0 +1,549 @@
+{
+  "draft": {
+    "id": "custom-scroll-regression",
+    "name": "浅色背景合成回归",
+    "base": "mint-breeze",
+    "colors": {
+      "primary": "#3b776b",
+      "accent": "#6BA899",
+      "background": "#EEF6F3",
+      "panel": "#F8FCFA",
+      "text": "#1E3A38",
+      "particle": "#9FD4C4",
+      "glow": "#BDE8DB"
+    },
+    "variantOf": "",
+    "variant": "",
+    "source": "",
+    "syntax": {
+      "constant": "#2F6B5E",
+      "string": "#4B7F6F",
+      "comment": "#7A938C",
+      "keyword": "#2E6B78",
+      "parameter": "#406F63",
+      "function": "#3D7E8C",
+      "string-expression": "#55836F",
+      "punctuation": "#5B7671",
+      "link": "#2E7D8C"
+    },
+    "ansi": [
+      "#24312E",
+      "#A34F4A",
+      "#3F7D5F",
+      "#8A7134",
+      "#3C6F8F",
+      "#7A5E86",
+      "#3B7F82",
+      "#DCE8E4",
+      "#5B706B",
+      "#C26A63",
+      "#5A9C7E",
+      "#A98C4C",
+      "#5A8FAD",
+      "#987BA3",
+      "#5FA3A3",
+      "#F5FAF8"
+    ],
+    "states": {
+      "success": "#2F7D5D",
+      "warning": "#9A6B2F",
+      "danger": "#A34F4A"
+    },
+    "artwork": {
+      "version": 1,
+      "seed": 7319,
+      "duration": 40,
+      "background": "#EEF6F3",
+      "layers": [
+        {
+          "id": "water-base",
+          "shape": "rect",
+          "count": 1,
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1,
+          "rotation": 0,
+          "opacity": 0.94,
+          "region": "viewport",
+          "blend": "source-over",
+          "fill": {
+            "radial": [
+              0.5,
+              0.34,
+              0.82
+            ],
+            "stops": [
+              [
+                0,
+                "#F8FCFA"
+              ],
+              [
+                0.55,
+                "#EDF6F2"
+              ],
+              [
+                1,
+                "#E0EEE9"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "sun-through-water",
+          "shape": "rect",
+          "count": 1,
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 0.42,
+          "rotation": 0,
+          "opacity": 0.22,
+          "region": "viewport",
+          "blend": "screen",
+          "fill": {
+            "linear": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "stops": [
+              [
+                0,
+                "#FFFFFF"
+              ],
+              [
+                0.45,
+                "#E9F8F1"
+              ],
+              [
+                1,
+                "#DFF0E9"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "edge-veil-left",
+          "shape": "rect",
+          "count": 1,
+          "x": 0,
+          "y": 0,
+          "width": 0.06,
+          "height": 1,
+          "rotation": 0,
+          "opacity": 0.3,
+          "region": "edges",
+          "blend": "source-over",
+          "fill": {
+            "linear": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "stops": [
+              [
+                0,
+                "#C9EADF"
+              ],
+              [
+                1,
+                "#EDF6F3"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "edge-veil-right",
+          "shape": "rect",
+          "count": 1,
+          "x": 0.94,
+          "y": 0,
+          "width": 0.06,
+          "height": 1,
+          "rotation": 0,
+          "opacity": 0.3,
+          "region": "edges",
+          "blend": "source-over",
+          "fill": {
+            "linear": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "stops": [
+              [
+                0,
+                "#C9EADF"
+              ],
+              [
+                1,
+                "#EDF6F3"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "edge-glow-left",
+          "shape": "ellipse",
+          "count": 4,
+          "x": [
+            "add",
+            0.01,
+            [
+              "mul",
+              "r",
+              0.12
+            ]
+          ],
+          "y": [
+            "add",
+            -0.1,
+            [
+              "mul",
+              "r",
+              0.8
+            ],
+            [
+              "mul",
+              0.03,
+              [
+                "sin",
+                [
+                  "add",
+                  [
+                    "mul",
+                    "t",
+                    0.12
+                  ],
+                  [
+                    "mul",
+                    "r",
+                    6.283
+                  ]
+                ]
+              ]
+            ]
+          ],
+          "width": 0.22,
+          "height": 0.55,
+          "rotation": 0,
+          "opacity": 0.14,
+          "region": "edges",
+          "blend": "screen",
+          "fill": {
+            "radial": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "stops": [
+              [
+                0,
+                "#BDEFE0"
+              ],
+              [
+                0.6,
+                "#A9E3D6"
+              ],
+              [
+                1,
+                "#DFF3EC"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "edge-glow-right",
+          "shape": "ellipse",
+          "count": 4,
+          "x": [
+            "add",
+            0.86,
+            [
+              "mul",
+              "r",
+              0.12
+            ]
+          ],
+          "y": [
+            "add",
+            -0.1,
+            [
+              "mul",
+              "r",
+              0.8
+            ],
+            [
+              "mul",
+              0.03,
+              [
+                "sin",
+                [
+                  "add",
+                  [
+                    "mul",
+                    "t",
+                    0.1
+                  ],
+                  [
+                    "mul",
+                    "r",
+                    6.283
+                  ]
+                ]
+              ]
+            ]
+          ],
+          "width": 0.22,
+          "height": 0.55,
+          "rotation": 0,
+          "opacity": 0.12,
+          "region": "edges",
+          "blend": "screen",
+          "fill": {
+            "radial": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "stops": [
+              [
+                0,
+                "#BDEFE0"
+              ],
+              [
+                0.6,
+                "#A9E3D6"
+              ],
+              [
+                1,
+                "#DFF3EC"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "ripple-lines-left",
+          "shape": "path",
+          "count": 2,
+          "x": 0,
+          "y": [
+            "add",
+            0.18,
+            [
+              "mul",
+              "i",
+              0.26
+            ],
+            [
+              "mul",
+              0.015,
+              [
+                "sin",
+                [
+                  "add",
+                  [
+                    "mul",
+                    "t",
+                    0.09
+                  ],
+                  [
+                    "mul",
+                    "i",
+                    1.7
+                  ]
+                ]
+              ]
+            ]
+          ],
+          "width": 0.18,
+          "height": 0.22,
+          "rotation": 0,
+          "opacity": 0.34,
+          "region": "edges",
+          "blend": "screen",
+          "stroke": "#8FC9BC",
+          "lineWidth": 0.0025,
+          "path": [
+            [
+              "M",
+              0,
+              0.5
+            ],
+            [
+              "C",
+              0.15,
+              0.25,
+              0.35,
+              0.75,
+              0.5,
+              0.5
+            ],
+            [
+              "C",
+              0.65,
+              0.25,
+              0.85,
+              0.75,
+              1,
+              0.5
+            ]
+          ]
+        },
+        {
+          "id": "ripple-lines-right",
+          "shape": "path",
+          "count": 2,
+          "x": 0.82,
+          "y": [
+            "add",
+            0.18,
+            [
+              "mul",
+              "i",
+              0.26
+            ],
+            [
+              "mul",
+              0.015,
+              [
+                "sin",
+                [
+                  "add",
+                  [
+                    "mul",
+                    "t",
+                    0.09
+                  ],
+                  [
+                    "mul",
+                    "i",
+                    1.7
+                  ]
+                ]
+              ]
+            ]
+          ],
+          "width": 0.18,
+          "height": 0.22,
+          "rotation": 0,
+          "opacity": 0.3,
+          "region": "edges",
+          "blend": "screen",
+          "stroke": "#8FC9BC",
+          "lineWidth": 0.0025,
+          "path": [
+            [
+              "M",
+              0,
+              0.5
+            ],
+            [
+              "C",
+              0.15,
+              0.25,
+              0.35,
+              0.75,
+              0.5,
+              0.5
+            ],
+            [
+              "C",
+              0.65,
+              0.25,
+              0.85,
+              0.75,
+              1,
+              0.5
+            ]
+          ]
+        },
+        {
+          "id": "surface-sparkle",
+          "shape": "ellipse",
+          "count": 12,
+          "x": [
+            "add",
+            0.02,
+            [
+              "mul",
+              [
+                "floor",
+                [
+                  "div",
+                  "i",
+                  6
+                ]
+              ],
+              0.8
+            ],
+            [
+              "mul",
+              "r",
+              0.14
+            ]
+          ],
+          "y": [
+            "add",
+            0.1,
+            [
+              "mul",
+              "r",
+              0.8
+            ]
+          ],
+          "width": [
+            "add",
+            0.004,
+            [
+              "mul",
+              "r",
+              0.008
+            ]
+          ],
+          "height": 0.005,
+          "rotation": 0,
+          "opacity": 0.3,
+          "region": "edges",
+          "blend": "screen",
+          "fill": "#E9FBF4"
+        }
+      ],
+      "assets": [],
+      "decisions": {
+        "intent": "把'阳光透过浅水'转译为浅色径向水面底、顶部柔光与左右边缘的缓慢光带和波纹线；以低密度、低透明、长周期体现清透安静，不用荧光色和密集粒子。字体系列保持原样，只改外观与颜色。",
+        "composition": "视觉重心保持在中央阅读区之外：中央由不透明浅色基底保证稳定阅读面，装饰限定在 edges 左右各 18%，从上到下以薄雾、光斑、波纹、微光分层；顶部光带只占画布 42% 高度且透明度 0.22，不进入输入区。",
+        "colorAndReading": "背景 #EEF6F3、面板 #F8FCFA 为稳定阅读面，正文 #1E3A38 与之对比充足；primary #3F8073 与 accent #6BA899 形成主次强调，状态色 success/warning/danger 独立可辨，语法色沿用青绿色系但压深以保证代码可读，不依赖装饰色表达状态。",
+        "patternsAndAssets": "不使用现成图片素材：水波用正弦位移的椭圆光斑与三次贝塞尔波纹描边，微光用 12 个极小椭圆；重复尺度控制在边缘窄条内，避免满屏纹理与摩尔纹。素材列表为空，避免未授权资源。",
+        "materialsAndLighting": "水面以径向渐变模拟光从上方透入，边缘光带用 screen 混合形成通透叠加；面板经 environment.glass 轻微通透与描边高光获得柔和层次，不使用模糊滤镜以外的伪折射，也不声称像素采样。",
+        "motionAndStates": "40 秒周期、固定种子 7319：光斑纵向漂移幅度 0.03 画布高、波纹层位移 0.015，速度慢且无闪烁；中央不参与位移。减少动态时取 t=0 静态相位，仍保留边缘光带与波纹构图；隐藏时由宿主暂停。",
+        "adaptationAndDelivery": "位置与尺寸使用画布相对比例，窄屏时中央阅读面不被装饰侵占，宽屏时边缘带宽随视口缩放但密度固定；静态回退、种子与程序哈希随主题保存，便于回退和重新导入。未提供真实折射，已在 limitations 说明。"
+      }
+    }
+  },
+  "appearance": {
+    "transparencyEnabled": true,
+    "windowOpacity": 1,
+    "sidebarOpacity": 0.94,
+    "panelOpacity": 0.94,
+    "inputOpacity": 0.96,
+    "borderRadius": "soft",
+    "contentWidth": "standard",
+    "animationsEnabled": true,
+    "contentStyle": "refined",
+    "diffTint": 0.55
+  },
+  "glass": {
+    "enabled": true,
+    "blurLevel": "light",
+    "strength": 6,
+    "saturation": 1.05,
+    "panelOpacity": 0.84,
+    "borderHighlight": 0.25,
+    "shadow": 0.12
+  }
+}

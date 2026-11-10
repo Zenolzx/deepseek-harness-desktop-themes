@@ -50,7 +50,7 @@ try{
     const count=document.querySelectorAll('.dth-artwork-runtime').length;runtime.dispose();button.remove();
     return {protectedAlpha,count,remaining:document.querySelectorAll('.dth-artwork-runtime').length};
   });
-  assert.deepEqual(runtimeResult,{protectedAlpha:0,count:1,remaining:0},'real DOM controls must be masked; updates and disposal must not accumulate canvases');
+  assert.deepEqual(runtimeResult,{protectedAlpha:255,count:1,remaining:0},'the background must remain opaque without text-shaped holes; updates and disposal must not accumulate canvases');
   const assetResult=await page.evaluate(async()=>{
     const tools=window.__artworkTools,art=tools.artwork(),canvas=document.createElement('canvas');canvas.width=8;canvas.height=8;const ctx=canvas.getContext('2d');ctx.fillStyle='#5ac4af';ctx.fillRect(0,0,8,8);const data=canvas.toDataURL();
     const bytes=Uint8Array.from(atob(data.split(',')[1]),c=>c.charCodeAt(0)),sha256='sha256:'+Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');

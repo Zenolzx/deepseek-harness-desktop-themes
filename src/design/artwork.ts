@@ -5,7 +5,7 @@ export interface ArtworkAsset {id:string;name:string;data?:string;source:string;
 export interface DrawLayer {
   id:string;shape:'ellipse'|'rect'|'path'|'image';count:number;
   x:Expr;y:Expr;width:Expr;height:Expr;rotation:Expr;opacity:Expr;
-  fill?:Paint;stroke?:string;lineWidth?:number;path?:Array<[string,...Expr[]]>;assetId?:string;
+  fill?:Paint;stroke?:Paint;lineWidth?:number;blur?:number;path?:Array<[string,...Expr[]]>;assetId?:string;
   region:'viewport'|'edges';blend:'source-over'|'screen'|'multiply'|'overlay';
 }
 export interface Artwork {
@@ -16,16 +16,18 @@ export interface Artwork {
 export const ARTWORK_LIMITS={layers:24,instances:1800,operations:100000,assetBytes:6*1024*1024,sourceBytes:384*1024,pathCommands:40};
 export const DRAWING_GUIDE=`绘制程序 artwork JSON: {version:1,seed:整数,duration:0或4..60秒,background:'#RRGGBB',layers:[],assets:[],decisions:{intent,composition,colorAndReading,patternsAndAssets,materialsAndLighting,motionAndStates,adaptationAndDelivery}}。
 decisions 七项均为具体中文设计决定。assets 由素材工具登记，你只能在 layer.assetId 引用登记的ID，不能自行提供图片字节。
-每层 {id,shape:'ellipse'|'rect'|'path'|'image',count:1..600,x,y,width,height,rotation,opacity,fill?,stroke?,lineWidth?,path?,assetId?,region:'viewport'|'edges',blend:'source-over'|'screen'|'multiply'|'overlay'}。所有位置/大小为画布相对比例，rotation弧度，opacity为0..1。层按数组顺序合成。路径在宽高定义的局部0..1坐标绘制，支持 ['M',x,y],['L',x,y],['C',x1,y1,x2,y2,x,y],['Q',x1,y1,x,y],['Z']。
+每层 {id,shape:'ellipse'|'rect'|'path'|'image',count:1..600,x,y,width,height,rotation,opacity,fill?,stroke?,lineWidth?,blur?,path?,assetId?,region:'viewport'|'edges',blend:'source-over'|'screen'|'multiply'|'overlay'}。所有位置/大小为画布相对比例，rotation弧度，opacity为0..1。层按数组顺序合成。路径在宽高定义的局部0..1坐标绘制，支持 ['M',x,y],['L',x,y],['C',x1,y1,x2,y2,x,y],['Q',x1,y1,x,y],['Z']。
 数值可以是常数、变量'i'(实例0..count-1),'n'(count),'t'(周期内秒数),'r'(实例固定0..1随机数)，或表达式数组：[操作,参数...]。支持 add/sub/mul/div/mod/pow/min/max/abs/sin/cos/sqrt/floor/ceil/noise/clamp/mix。noise(x,y)为连续确定性0..1噪声；clamp(x,min,max)，mix(a,b,t)。可嵌套12层。除零得到0；有限数值被限制在-1000..1000。禁止JS、CSS、DOM、URL和任意代码。
-fill支持HEX颜色，或{linear:[x0,y0,x1,y1],stops:[[0,'#HEX'],[1,'#HEX']]}, 或{radial:[cx,cy,r],stops:[...]}, 坐标相对于图形局部。最多8个色标。stroke仅HEX，lineWidth画布比例0..0.05。
-可自由构造几何、自然轮廓、纹理、图案、光带和粒子分布；不需要套用预设。最多24层、1800实例、100000次表达式操作；path每层最多40命令。duration=0静态，动态以t变化；静态回退为t=0。运行时会保护正文与操作区域，region=edges只显示左右各18%。不提供真实背景折射/像素采样或任意布局修改。
-完整主题需要设计七项职责；局部修改保留未修改的绘制层。`;
+fill与stroke支持 #RRGGBB 或 #RRGGBBAA 颜色（末两位为透明度；渐变也支持透明色标），或{linear:[x0,y0,x1,y1],stops:[[0,'#HEX'],[1,'#HEX']]}, 或{radial:[cx,cy,r],stops:[...]}, 坐标相对于图形局部。最多8个色标。lineWidth画布比例0..0.05；blur为画布短边比例0..0.025（运行时最多24像素），用于图层柔化，不能采样或折射背后界面。
+可自由构造几何、自然轮廓、纹理、图案、光带和粒子分布；不需要套用预设。最多24层、1800实例、100000次表达式操作；path每层最多40命令。duration=0静态，动态以t变化；静态回退为t=0。作品在整个宿主界面下方合成，不覆盖/挖洞/移动任何文字。输入、菜单等使用稳定实色表面。region=edges只显示左右各18%，不是主图案的默认范围。不提供真实背景折射/像素采样或任意布局修改。
+完整主题需要设计七项职责；局部修改保留未修改的绘制层。
+可见性必须依据实际合成判断：浅底上 screen 会进一步接近白色，不能用近白线+screen假装有纹理。采用 source-over 或 multiply 的深浅层次，透明渐变淡出而非不透明矩形/椭圆色块。主图案不能仅缩在边缘两条细线。
+按意向设计可观测的形态与时间变化：流体的形变/传播、烟云的演变、几何的节奏与整体平移是不同实现。表达式可以进入 path 控制点、width/height/rotation/opacity；只平移一个静态符号不能自称完成形变或流动。周期应使用2π*t/duration保持首尾连续。低速和低密度不等于不可见。明确不能达到的要求，不能以图层名称或说明代替画面。`;
 const areas=['intent','composition','colorAndReading','patternsAndAssets','materialsAndLighting','motionAndStates','adaptationAndDelivery'];
 function obj(v:unknown):v is Record<string,unknown>{return !!v&&typeof v==='object'&&!Array.isArray(v);}
 function keys(v:Record<string,unknown>,allowed:readonly string[],label:string){for(const k of Object.keys(v))if(!allowed.includes(k))throw new Error(`${label} 不支持字段 ${k}`);}
 function num(v:unknown,min:number,max:number,name:string):number{if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max)throw new Error(`${name} 超出 ${min}..${max}`);return v;}
-function color(v:unknown):string{if(typeof v!=='string'||!/^#[\da-f]{6}$/i.test(v))throw new Error('绘制颜色必须为六位 HEX');return v;}
+function color(v:unknown,alpha=false):string{if(typeof v!=='string'||!(alpha?/^#[\da-f]{6}(?:[\da-f]{2})?$/i:/^#[\da-f]{6}$/i).test(v))throw new Error('绘制颜色必须为 HEX，填充与描边可带两位透明度');return v;}
 const arity:Record<string,[number,number]>={add:[2,6],sub:[2,2],mul:[2,6],div:[2,2],mod:[2,2],pow:[2,2],min:[2,6],max:[2,6],abs:[1,1],sin:[1,1],cos:[1,1],sqrt:[1,1],floor:[1,1],ceil:[1,1],noise:[1,2],clamp:[3,3],mix:[3,3]};
 function expression(v:unknown,depth=0):{value:Expr;cost:number}{
   if(depth>12)throw new Error('绘制表达式嵌套超过12层');
@@ -36,14 +38,14 @@ function expression(v:unknown,depth=0):{value:Expr;cost:number}{
   const args=v.slice(1).map(x=>expression(x,depth+1));return {value:[v[0],...args.map(a=>a.value)],cost:1+args.reduce((s,a)=>s+a.cost,0)};
 }
 function paint(v:unknown):Paint{
-  if(typeof v==='string')return color(v);
+  if(typeof v==='string')return color(v,true);
   if(!obj(v))throw new Error('填充格式错误');keys(v,['linear','radial','stops'],'填充');
   if(!!v.linear===!!v.radial)throw new Error('渐变需要一个 linear 或 radial');
   const coords=v.linear ?? v.radial;
   if(!Array.isArray(coords)||coords.length!==(v.linear?4:3))throw new Error('渐变坐标错误');
   coords.forEach(c=>num(c,-4,4,'渐变坐标'));if(v.radial)num(coords[2],0.001,4,'渐变半径');
   if(!Array.isArray(v.stops)||v.stops.length<2||v.stops.length>8)throw new Error('渐变需要2..8个色标');
-  const stops:Array<[number,string]>=v.stops.map(s=>{if(!Array.isArray(s)||s.length!==2)throw new Error('色标格式错误');return [num(s[0],0,1,'色标'),color(s[1])];});
+  const stops:Array<[number,string]>=v.stops.map(s=>{if(!Array.isArray(s)||s.length!==2)throw new Error('色标格式错误');return [num(s[0],0,1,'色标'),color(s[1],true)];});
   return v.linear?{linear:coords as [number,number,number,number],stops}:{radial:coords as [number,number,number],stops};
 }
 export function parseArtwork(raw:unknown):Artwork{
@@ -68,7 +70,7 @@ export function parseArtwork(raw:unknown):Artwork{
   const withoutAssets=JSON.stringify({...raw,assets:[]});if(withoutAssets.length>ARTWORK_LIMITS.sourceBytes)throw new Error('绘制程序过大');
   let total=0,cost=0;const ids=new Set<string>();
   const layers=raw.layers.map((v):DrawLayer=>{
-    if(!obj(v))throw new Error('绘制层无效');keys(v,['id','shape','count','x','y','width','height','rotation','opacity','fill','stroke','lineWidth','path','assetId','region','blend'],'绘制层');
+    if(!obj(v))throw new Error('绘制层无效');keys(v,['id','shape','count','x','y','width','height','rotation','opacity','fill','stroke','lineWidth','blur','path','assetId','region','blend'],'绘制层');
     if(typeof v.id!=='string'||!v.id||v.id.length>64||ids.has(v.id))throw new Error('图层标识无效或重复');ids.add(v.id);
     if(!['ellipse','rect','path','image'].includes(String(v.shape)))throw new Error('绘制形状不支持');
     const count=num(v.count ?? 1,1,600,'实例数');if(!Number.isInteger(count))throw new Error('实例数必须为整数');total+=count;
@@ -84,7 +86,7 @@ export function parseArtwork(raw:unknown):Artwork{
     const region=v.region ?? 'viewport',blend=v.blend ?? 'source-over';
     if(!['viewport','edges'].includes(String(region))||!['source-over','screen','multiply','overlay'].includes(String(blend)))throw new Error('区域或混合模式无效');
     cost+=count*(layerCost+20);
-    return {id:v.id,shape:v.shape as DrawLayer['shape'],count,...fields,region,blend,...(v.fill!==undefined?{fill:paint(v.fill)}:{}),...(v.stroke!==undefined?{stroke:color(v.stroke)}:{}),...(v.lineWidth!==undefined?{lineWidth:num(v.lineWidth,0,0.05,'线宽')}:{}),...(path?{path}:{}),...(v.assetId?{assetId:String(v.assetId)}:{})} as DrawLayer;
+    return {id:v.id,shape:v.shape as DrawLayer['shape'],count,...fields,region,blend,...(v.fill!==undefined?{fill:paint(v.fill)}:{}),...(v.stroke!==undefined?{stroke:paint(v.stroke)}:{}),...(v.lineWidth!==undefined?{lineWidth:num(v.lineWidth,0,0.05,'线宽')}:{}),...(v.blur!==undefined?{blur:num(v.blur,0,0.025,'柔化半径')}:{}),...(path?{path}:{}),...(v.assetId?{assetId:String(v.assetId)}:{})} as DrawLayer;
   });
   if(total>ARTWORK_LIMITS.instances||cost>ARTWORK_LIMITS.operations)throw new Error('绘制实例或表达式计算量超出预算，请简化程序');
   for(const asset of assets)if(!layers.some(l=>l.assetId===asset.id))throw new Error(`未使用的素材不进入作品：${asset.name}`);
@@ -104,22 +106,26 @@ export async function loadArtworkImages(art:Artwork,resolve?:(asset:ArtworkAsset
   const images=new Map<string,HTMLImageElement>();let pixels=0;
   for(const asset of art.assets){const image=new Image();image.src=asset.data ?? (resolve?await resolve(asset):'');await image.decode();pixels+=image.width*image.height;if(image.width*image.height>16_000_000||pixels>24_000_000)throw new Error('作品素材像素预算超限（单图1600万、总计2400万）');images.set(asset.id,image);}return images;
 }
-export interface Rect {x:number;y:number;width:number;height:number}
-export function drawArtwork(ctx:CanvasRenderingContext2D,art:Artwork,w:number,h:number,time=0,images=new Map<string,HTMLImageElement>(),protectedRects:Rect[]=[]){
+function canvasPaint(ctx:CanvasRenderingContext2D,p:Paint,w:number,h:number):string|CanvasGradient{
+  if(typeof p==='string')return p;
+  let gradient:CanvasGradient;
+  if(p.linear){const [a,b,c,d]=p.linear;gradient=ctx.createLinearGradient(a*w,b*h,c*w,d*h);}
+  else{const [a,b,r]=p.radial!;gradient=ctx.createRadialGradient(a*w,b*h,0,a*w,b*h,r*Math.max(w,h));}
+  for(const [stop,color] of p.stops)gradient.addColorStop(stop,color);return gradient;
+}
+export function drawArtwork(ctx:CanvasRenderingContext2D,art:Artwork,w:number,h:number,time=0,images=new Map<string,HTMLImageElement>()){
   const started=performance.now();ctx.clearRect(0,0,w,h);ctx.fillStyle=art.background;ctx.fillRect(0,0,w,h);
   for(let k=0;k<art.layers.length;k++){
     const l=art.layers[k];ctx.save();if(l.region==='edges'){ctx.beginPath();ctx.rect(0,0,w*.18,h);ctx.rect(w*.82,0,w*.18,h);ctx.clip();}
     ctx.globalCompositeOperation=l.blend;
+    ctx.filter=l.blur?`blur(${Math.min(24,l.blur*Math.min(w,h))}px)`:'none';
     for(let i=0;i<l.count;i++){
       const env={i,n:l.count,t:art.duration?time%art.duration:0,r:hash(i,k,art.seed),seed:art.seed+k};const val=(e:Expr)=>evalExpr(e,env);
       const x=val(l.x)*w,y=val(l.y)*h,rw=Math.min(4,Math.abs(val(l.width)))*w,rh=Math.min(4,Math.abs(val(l.height)))*h;if(rw<.01||rh<.01)continue;
       ctx.save();ctx.translate(x,y);ctx.rotate(val(l.rotation));ctx.globalAlpha=Math.max(0,Math.min(1,val(l.opacity)));
       ctx.lineWidth=(l.lineWidth ?? .001)*Math.min(w,h);ctx.lineCap='round';ctx.lineJoin='round';
-      if(l.fill){
-        if(typeof l.fill==='string')ctx.fillStyle=l.fill;
-        else{const p=l.fill;let gradient:CanvasGradient;if(p.linear){const [a,b,c,d]=p.linear;gradient=ctx.createLinearGradient(a*rw,b*rh,c*rw,d*rh);}else{const [a,b,r]=p.radial!;gradient=ctx.createRadialGradient(a*rw,b*rh,0,a*rw,b*rh,r*Math.max(rw,rh));}for(const [stop,color] of p.stops)gradient.addColorStop(stop,color);ctx.fillStyle=gradient;}
-      }
-      if(l.stroke)ctx.strokeStyle=l.stroke;
+      if(l.fill)ctx.fillStyle=canvasPaint(ctx,l.fill,rw,rh);
+      if(l.stroke)ctx.strokeStyle=canvasPaint(ctx,l.stroke,rw,rh);
       if(l.shape==='image'){const image=images.get(l.assetId!);if(image){const scale=Math.max(rw/image.width,rh/image.height);ctx.beginPath();ctx.rect(0,0,rw,rh);ctx.clip();ctx.drawImage(image,(rw-image.width*scale)/2,(rh-image.height*scale)/2,image.width*scale,image.height*scale);}}
       else{
         ctx.beginPath();if(l.shape==='ellipse')ctx.ellipse(rw/2,rh/2,rw/2,rh/2,0,0,Math.PI*2);
@@ -131,6 +137,5 @@ export function drawArtwork(ctx:CanvasRenderingContext2D,art:Artwork,w:number,h:
     }
     ctx.restore();
   }
-  for(const r of protectedRects)ctx.clearRect(r.x,r.y,r.width,r.height);
   return performance.now()-started;
 }

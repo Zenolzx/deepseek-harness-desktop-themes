@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evalExpr, parseArtwork } from '../src/design/artwork.ts';
 import { artwork } from './fixtures/artwork.ts';
+import { timeDependent, changesOverTime } from '../src/design/signals.ts';
+import { deformingArtwork } from './fixtures/deforming-artwork.ts';
 import { coerceConfig } from '../src/config/validation.ts';
 import { createDefaultConfig } from '../src/config/defaults.ts';
 import { draftFromTheme } from '../src/studio/model.ts';
@@ -29,6 +31,21 @@ test('artwork requires registered, used, bounded raster assets',()=>{
   assert.throws(()=>parseArtwork({...a,layers:[{...a.layers[0],shape:'image',path:undefined,assetId:'missing'}]}),/登记/);
   assert.throws(()=>parseArtwork({...a,assets:[asset]}),/未使用/);
   assert.throws(()=>parseArtwork({...a,assets:[{...asset,data:'data:image/svg+xml;base64,AAAA'}]}),/PNG/);
+});
+test('paint supports actual transparent fades and gradient strokes with bounded softening',()=>{
+  const a=artwork();
+  const layer={...a.layers[0],stroke:{linear:[0,0,1,0],stops:[[0,'#32857500'],[1,'#328575CC']]},blur:.002};
+  assert.equal(parseArtwork({...a,layers:[layer]}).layers[0].blur,.002);
+  assert.throws(()=>parseArtwork({...a,layers:[{...layer,blur:.1}]}),/柔化/);
+  assert.throws(()=>parseArtwork({...a,layers:[{...layer,stroke:'url(https://example.com)'}]}),/HEX/);
+  assert.throws(()=>parseArtwork({...a,background:'#FFFFFF00'}),/HEX/,'base must stay opaque');
+});
+test('deforming regression changes path control points instead of translating a static icon',()=>{
+  const art=parseArtwork(deformingArtwork()),path=art.layers.find(l=>l.id==='curved-field')!;
+  assert.ok(path.path!.some(c=>c.slice(1).some(x=>timeDependent(x as import('../src/design/artwork.ts').Expr))));
+  assert.equal(timeDependent(path.x),false);assert.equal(timeDependent(path.y),false);
+  assert.equal(changesOverTime(['mul',0,'t'],32,2,17),false);
+  assert.equal(changesOverTime(['sin',['mul',.2,'t']],32,2,17),true);
 });
 test('procedural artwork survives config normalization and portable version2 export/import',async()=>{
   const c=createDefaultConfig(),draft={...draftFromTheme(c.theme,c.customThemes),artwork:artwork()};
